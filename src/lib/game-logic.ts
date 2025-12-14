@@ -9,7 +9,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -86,6 +86,7 @@ export function createInitialGameState(
             }
         },
         queue: [],
+        bannedIds: [],
         chat: [],
         status: 'lobby',
         matchStatus: 'lobby',
@@ -181,6 +182,41 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             // Append to queue
             return { ...state, queue: [...state.queue, targetId] };
         }
+    }
+
+    // --- BAN PLAYER (HOST ONLY) ---
+    if (type === 'BAN_PLAYER') {
+        if (state.hostId !== playerId) throw new Error('Only host can ban players');
+
+        const targetId = payload?.targetId;
+        if (!targetId) return state;
+
+        // Cannot ban yourself (the host)
+        if (targetId === state.hostId) throw new Error('Cannot ban yourself');
+
+        // Get the player's name before removing them (for ban tracking)
+        const targetPlayer = state.players[targetId];
+        if (!targetPlayer) return state;
+
+        // Create a simple hash of the player name for ban persistence across reconnects
+        const nameHash = `name:${targetPlayer.name.toLowerCase().trim()}`;
+
+        // Remove from players
+        const newPlayers = { ...state.players };
+        delete newPlayers[targetId];
+
+        // Remove from queue if present
+        const newQueue = state.queue.filter(id => id !== targetId);
+
+        // Add to banned list (both the ID and the name hash)
+        const newBannedIds = [...(state.bannedIds || []), targetId, nameHash];
+
+        return {
+            ...state,
+            players: newPlayers,
+            queue: newQueue,
+            bannedIds: newBannedIds,
+        };
     }
 
     // --- HOST: START MATCH ---

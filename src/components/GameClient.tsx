@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
 import { GameState, Player, Turn } from '@/lib/types';
-import { Loader2, Copy, Check, Home, Crown } from 'lucide-react';
+import { Loader2, Copy, Check, Home, Crown, UserX } from 'lucide-react';
 import GameBoard from '@/components/GameBoard';
 import GameControls from '@/components/GameControls';
 // import GameLog from './GameLog'; // Removed unused import
@@ -174,23 +174,34 @@ export default function GameClient({ roomId }: { roomId: string }) {
                             {spectators.map(p => (
                                 <div
                                     key={p.id}
-                                    onClick={() => iamHost ? sendAction('TOGGLE_QUEUE_PLAYER', { targetId: p.id }) : null}
-                                    className={`flex items-center justify-between p-2 rounded-lg transition text-sm ${iamHost ? 'cursor-pointer hover:bg-slate-800' : ''}`}
+                                    className={`flex items-center justify-between p-2 rounded-lg transition text-sm ${iamHost ? 'hover:bg-slate-800' : ''}`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div
+                                        className={`flex items-center gap-2 flex-1 ${iamHost ? 'cursor-pointer' : ''}`}
+                                        onClick={() => iamHost ? sendAction('TOGGLE_QUEUE_PLAYER', { targetId: p.id }) : null}
+                                    >
                                         {game.hostId === p.id && <Crown size={14} className="text-yellow-400 fill-yellow-400" />}
                                         <span className="text-slate-300">{p.name}</span>
+                                        {game.queue.includes(p.id) && (
+                                            <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                IN QUEUE
+                                                {iamHost && <span className="opacity-50 text-[8px]">(click to remove)</span>}
+                                            </span>
+                                        )}
                                     </div>
-                                    {game.queue.includes(p.id) && (
-                                        <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                            IN QUEUE
-                                            {iamHost && <span className="opacity-50 text-[8px]">(click to remove)</span>}
-                                        </span>
-                                    )}
-                                    {iamHost && !game.queue.includes(p.id) && (
-                                        <span className="text-[10px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100">
-                                            + Queue
-                                        </span>
+                                    {iamHost && p.id !== game.hostId && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (confirm(`Ban ${p.name} from this room? They will not be able to rejoin.`)) {
+                                                    sendAction('BAN_PLAYER', { targetId: p.id });
+                                                }
+                                            }}
+                                            className="p-1 text-red-500/50 hover:text-red-400 hover:bg-red-900/30 rounded transition"
+                                            title={`Ban ${p.name}`}
+                                        >
+                                            <UserX size={14} />
+                                        </button>
                                     )}
                                 </div>
                             ))}
@@ -200,16 +211,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         {iamHost && spectators.length > 0 && (
                             <p className="text-[10px] text-slate-500 mt-2 text-center">Click a spectator to add/remove from queue</p>
                         )}
-                        {/* Queue Actions */}
-                        {!iamActive && !iamHost && (
-                            <div className="mt-2">
-                                {game.queue.includes(playerId!) ? (
-                                    <button onClick={() => sendAction('LEAVE_QUEUE', null)} className="w-full text-xs bg-red-900/30 text-red-400 py-2 rounded hover:bg-red-900/50">Leave Queue</button>
-                                ) : (
-                                    <button onClick={() => sendAction('JOIN_QUEUE', null)} className="w-full text-xs bg-blue-600 text-white py-2 rounded hover:bg-blue-500">Join Next Up Queue</button>
-                                )}
-                            </div>
-                        )}
+                        {/* Queue management is host-only - spectators cannot add themselves */}
                     </div>
                 </div>
 

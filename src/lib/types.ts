@@ -32,6 +32,7 @@ export type GameState = {
     hostId: string;
     players: Record<string, Player>; // All participants (Host, Players, Spectators)
     queue: string[]; // IDs of players waiting to play
+    bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];
     status: GameStatus; // Party Status
     matchStatus: 'lobby' | 'playing' | 'finished'; // Current match status

@@ -21,6 +21,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Room not found' }, { status: 404 });
         }
 
+        // Check if this player name is banned
+        const nameHash = `name:${cleanName.toLowerCase().trim()}`;
+        if (game.bannedIds?.includes(nameHash)) {
+            return NextResponse.json({ error: 'You have been banned from this room' }, { status: 403 });
+        }
+
         const playerId = crypto.randomUUID();
         let newGame;
         try {
