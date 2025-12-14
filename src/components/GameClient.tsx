@@ -112,9 +112,8 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
     // Chat visibility strategy:
     // "Spectator messages must NOT be visible to the active players"
-    // "Host can see spectator chat"
-    // So: Visible if YOU are Host OR YOU are Spectator. Hidden if YOU are Active Player.
-    const showChat = !iamActive || iamHost;
+    // So: Visible only if YOU are NOT an Active Player.
+    const showChat = !iamActive;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-yellow-900/20 via-slate-950 to-red-900/20 text-white flex flex-col md:flex-row overflow-hidden">
@@ -367,6 +366,10 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         const isMyQ = q.playerId === playerId;
                         const askerName = isMyQ ? 'You' : (game.players[q.playerId]?.name || 'Opponent');
 
+                        let answerColor = 'text-green-400';
+                        if (a?.content?.toLowerCase() === 'no') answerColor = 'text-red-400';
+                        if (a?.content?.toLowerCase() === 'yes') answerColor = 'text-green-400';
+
                         return (
                             <div className={`p-3 backdrop-blur-sm border-b ${isCurrent ? 'bg-blue-900/30 border-blue-500/30' : 'bg-slate-900/40 border-slate-700/30'} flex flex-col gap-1 items-center animate-slide-in`}>
                                 <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-bold opacity-70">
@@ -386,7 +389,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                     {a ? (
                                         <>
                                             <span className="text-slate-600">•</span>
-                                            <span className="text-[10px] text-green-400 uppercase tracking-wider font-bold">
+                                            <span className={`text-[10px] ${answerColor} uppercase tracking-wider font-bold`}>
                                                 {a.playerId === playerId ? 'You' : (game.players[a.playerId]?.name || 'They')} Answered: {a.content}
                                             </span>
                                         </>

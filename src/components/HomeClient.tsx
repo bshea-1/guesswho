@@ -101,7 +101,7 @@ export default function HomeClient() {
                 body: JSON.stringify({
                     hostName: undefined, // Will default to 'Host'
                     mode: undefined, // Mode removed
-                    visibility: 'unlisted' // Default
+                    visibility: 'public' // Default
                 }),
             });
 
@@ -220,7 +220,6 @@ export default function HomeClient() {
                     <h1 className="text-5xl font-black bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">
                         GUESS WHO?
                     </h1>
-                    <p className="mt-2 text-slate-400">Multiplayer Edition</p>
                 </div>
 
                 {/* Current Game Banner - Moved Outside */}
@@ -259,7 +258,7 @@ export default function HomeClient() {
                     </motion.div>
                 )}
 
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl min-h-[300px] flex flex-col justify-center">
+                <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl min-h-[auto] flex flex-col justify-center">
 
                     <div className="space-y-4">
                         {/* Name input removed from landing page */}

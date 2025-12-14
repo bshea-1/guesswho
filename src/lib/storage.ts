@@ -9,8 +9,8 @@ const LOCAL_DATA_DIR = path.join(process.cwd(), 'data');
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'games.json');
 
 // Cleanup thresholds
-const FINISHED_GAME_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-const INACTIVE_GAME_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+const FINISHED_GAME_EXPIRY_MS = 1 * 60 * 1000; // 1 minute
+const INACTIVE_GAME_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 // In-memory fallback for production without Supabase
 // NOTE: This will NOT persist across serverless function cold starts!
