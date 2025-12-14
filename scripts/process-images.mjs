@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 const INPUT_DIR = path.join(__dirname, '../assets/original_characters');
 const OUTPUT_DIR = path.join(__dirname, '../public/characters');
 
-const RED_THRESHOLD = 50; // Distance in RGB space to consider "red"
-const TARGET_RED = { r: 255, g: 0, b: 0 }; // The red border color
+// Border thickness as percentage of image dimension
+const BORDER_PERCENT = 0.15; // 15% on each side is considered border
 
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -27,30 +27,35 @@ async function processImage(filename) {
     const originalImage = sharp(inputPath);
     const { width, height } = await originalImage.metadata();
 
+    // Calculate border regions
+    const borderLeft = Math.floor(width * BORDER_PERCENT);
+    const borderRight = Math.floor(width * (1 - BORDER_PERCENT));
+    const borderTop = Math.floor(height * BORDER_PERCENT);
+    const borderBottom = Math.floor(height * (1 - BORDER_PERCENT));
+
     // Get raw pixel data
     const rawBuffer = await originalImage.ensureAlpha().raw().toBuffer();
 
-    // Iterate through pixels and replace red with transparent
-    // This is a naive pixel manipulation for simplicity with sharp raw buffer
-    // A more advanced way would be masking, but this is sufficient for solid borders
-    for (let i = 0; i < rawBuffer.length; i += 4) {
-      const r = rawBuffer[i];
-      const g = rawBuffer[i + 1];
-      const b = rawBuffer[i + 2];
-      // alpha is at i + 3
+    // Iterate through pixels and replace red with transparent ONLY in border regions
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
 
-      // Check distance from pure red
-      // Simple Euclidian distance or just check if R is high and G/B are low
-      // "Red" border usually is R > 200, G < 50, B < 50
-      
-      const isRed = (r > 150) && (g < 80) && (b < 80); 
-      
-      // More precise: Euclidian distance from target
-      // const dist = Math.sqrt((r - TARGET_RED.r)**2 + (g - TARGET_RED.g)**2 + (b - TARGET_RED.b)**2);
-      // if (dist < RED_THRESHOLD) ...
+        // Check if pixel is in the border region (not the center content area)
+        const isInBorder = (x < borderLeft || x >= borderRight || y < borderTop || y >= borderBottom);
 
-      if (isRed) {
-        rawBuffer[i + 3] = 0; // Set Alpha to 0 (Transparent)
+        if (!isInBorder) continue; // Skip center content area
+
+        const r = rawBuffer[i];
+        const g = rawBuffer[i + 1];
+        const b = rawBuffer[i + 2];
+
+        // Check if pixel is red (R > 150, G < 80, B < 80)
+        const isRed = (r > 150) && (g < 80) && (b < 80);
+
+        if (isRed) {
+          rawBuffer[i + 3] = 0; // Set Alpha to 0 (Transparent)
+        }
       }
     }
 
@@ -65,13 +70,15 @@ async function processImage(filename) {
 
 async function main() {
   console.log('Starting image processing...');
+  console.log(`Border region: ${BORDER_PERCENT * 100}% on each side`);
   const files = fs.readdirSync(INPUT_DIR);
-  
+
   for (const file of files) {
     await processImage(file);
   }
-  
+
   console.log('All images processed!');
 }
 
 main();
+
