@@ -14,10 +14,10 @@ export async function GET() {
         const summary = sorted.map(g => ({
             roomId: g.roomId,
             hostName: g.players[g.hostId]?.name || 'Unknown',
-            spectators: g.spectators,
+            spectators: Object.values(g.players).filter(p => p.role === 'spectator').length,
             createdAt: g.createdAt,
-            status: g.status,
-            mode: g.settings.mode
+            status: g.matchStatus === 'playing' ? 'playing' : g.status, // Map matchStatus to status for UI if needed, or just use status
+            mode: 'Party'
         }));
 
         return NextResponse.json(summary);
