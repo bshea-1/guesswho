@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { gameStorage } from '@/lib/storage';
 
-export async function GET(req: Request, { params }: { params: { roomId: string } }) {
-    const roomId = params.roomId;
+export async function GET(req: Request, { params }: { params: Promise<{ roomId: string }> }) {
+    const { roomId } = await params;
 
     const game = await gameStorage.getGame(roomId);
 

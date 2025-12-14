@@ -1,5 +1,6 @@
 import GameClient from '@/components/GameClient';
 
-export default function Page({ params }: { params: { roomId: string } }) {
-    return <GameClient roomId={params.roomId} />;
+export default async function Page({ params }: { params: Promise<{ roomId: string }> }) {
+    const { roomId } = await params;
+    return <GameClient roomId={roomId} />;
 }

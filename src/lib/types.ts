@@ -1,4 +1,4 @@
-import { Character } from './characters';
+export type { Character } from './characters';
 
 export type PlayerRole = 'host' | 'player' | 'spectator';
 

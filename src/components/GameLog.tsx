@@ -1,5 +1,4 @@
 import { Turn } from '@/lib/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 // I haven't installed scroll-area, so I'll use standard div overflow
 
 export default function GameLog({ history }: { history: Turn[] }) {
