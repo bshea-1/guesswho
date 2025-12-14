@@ -456,10 +456,10 @@ export default function GameClient({ roomId }: { roomId: string }) {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsSidebarOpen(false)}
-                            className="fixed inset-0 bg-black/80 z-40 md:hidden backdrop-blur-sm"
+                            className="fixed inset-0 bg-black/80 z-[60] md:hidden backdrop-blur-sm"
                         />
                         <motion.div
-                            className="fixed inset-y-0 left-0 w-[85%] sm:w-[350px] bg-slate-900 shadow-2xl z-50 md:hidden border-r border-white/10"
+                            className="fixed inset-y-0 left-0 w-[85%] sm:w-[350px] bg-slate-900 shadow-2xl z-[70] md:hidden border-r border-white/10"
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
@@ -529,14 +529,26 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 {/* Top Bar: Status */}
                 <div className="p-2 sm:p-4 bg-slate-900/80 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-10 shrink-0">
                     <div className="flex items-center gap-3">
-                        {/* Mobile Menu Toggle */}
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="p-2 -ml-2 text-slate-400 hover:text-white md:hidden relative"
-                        >
-                            <Menu size={20} />
-                            {hasUnread && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
-                        </button>
+                        {/* Mobile Menu Toggle & Room Code */}
+                        <div className="flex items-center gap-2 md:hidden">
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="p-2 -ml-2 text-slate-400 hover:text-white relative"
+                            >
+                                <Menu size={20} />
+                                {hasUnread && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
+                            </button>
+                            <button
+                                onClick={copyRoomCode}
+                                className="flex items-center gap-1 bg-slate-800/50 px-2 py-1 rounded border border-white/10 text-xs"
+                            >
+                                <span className="text-slate-400">Code:</span>
+                                <span className="font-mono text-white font-bold">{roomId}</span>
+                                {copied && <Check size={10} className="text-green-400" />}
+                            </button>
+                        </div>
+
+                        {/* Desktop Room Code (Only if needed, but sidebar covers it usually) */}
 
                         <div className="font-bold text-sm sm:text-lg overflow-hidden h-8 flex items-center">
                             <AnimatePresence mode="wait">
@@ -578,7 +590,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                         animate={{ opacity: 1 }}
                                         className="text-yellow-400 text-xs sm:text-base"
                                     >
-                                        WAITING FOR MATCH...
+                                        WAITING
                                     </motion.span>
                                 )}
                             </AnimatePresence>
