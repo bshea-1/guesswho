@@ -12,6 +12,9 @@ interface ClientStore {
     // Local cache of game state for optimistic updates
     game: GameState | null;
     setGame: (game: GameState) => void;
+    // Guess mode - when true, clicking a card makes a guess
+    guessMode: boolean;
+    setGuessMode: (mode: boolean) => void;
 }
 
 export const useGameStore = create<ClientStore>()(
@@ -25,6 +28,8 @@ export const useGameStore = create<ClientStore>()(
             setRoomId: (id) => set({ roomId: id }),
             game: null,
             setGame: (game) => set({ game }),
+            guessMode: false,
+            setGuessMode: (mode) => set({ guessMode: mode }),
         }),
         {
             name: 'guesswho-storage',

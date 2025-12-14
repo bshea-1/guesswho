@@ -230,7 +230,7 @@ export function startGame(state: GameState): GameState {
         ...state,
         status: 'playing',
         turnPlayerId,
-        history: [...state.history, { playerId: 'system', action: 'guess', content: 'Game Started', timestamp: Date.now() }],
+        // Don't add Game Started here - GameLog shows it automatically
         players: {
             ...state.players,
             [p1Id]: { ...state.players[p1Id], characterId: p1Char.id, isReady: true },

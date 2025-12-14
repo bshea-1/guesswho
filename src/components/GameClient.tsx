@@ -94,7 +94,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                     <div className="text-xs text-slate-500 mt-1">Spectators: {game.spectators}</div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    <GameLog history={game.history} />
+                    <GameLog history={game.history} game={game} playerId={playerId} />
                 </div>
             </div>
 

@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { GameState } from '@/lib/types';
+import { useGameStore } from '@/lib/store';
 import { Mic, Send, AlertCircle, Flag, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import { CHARACTERS } from '@/lib/characters';
 
@@ -52,8 +53,7 @@ const needsAnswer = (history: GameState['history']) => {
 
 export default function GameControls({ game, playerId }: { game: GameState, playerId: string | null }) {
     const [input, setInput] = useState('');
-    const [mode, setMode] = useState<'ask' | 'guess'>('ask');
-    const [showCharacters, setShowCharacters] = useState(false);
+    const { guessMode, setGuessMode } = useGameStore();
 
     const isMyTurn = game.turnPlayerId === playerId;
     const isSpectator = !playerId || !game.players[playerId];
@@ -61,12 +61,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
 
     // Suggest Questions Logic
     const myPlayer = playerId ? game.players[playerId] : null;
-    const suggestion = (myPlayer && mode === 'ask') ? getBestQuestion(myPlayer.eliminatedIds) : null;
-
-    // Filter characters for autocomplete
-    const filteredCharacters = CHARACTERS.filter(c =>
-        c.name.toLowerCase().includes(input.toLowerCase())
-    ).slice(0, 6);
+    const suggestion = (myPlayer && !guessMode) ? getBestQuestion(myPlayer.eliminatedIds) : null;
 
     const sendAction = async (type: string, payload: any) => {
         await fetch('/api/game/action', {
@@ -80,7 +75,6 @@ export default function GameControls({ game, playerId }: { game: GameState, play
             })
         });
         setInput('');
-        setShowCharacters(false);
     };
 
     const startListening = () => {
@@ -174,69 +168,56 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
                         <button
-                            onClick={() => { setMode('ask'); setShowCharacters(false); }}
-                            className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${mode === 'ask' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                            onClick={() => setGuessMode(false)}
+                            className={`flex-1 py-3 rounded-lg font-bold text-sm transition ${!guessMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                         >
-                            ASK QUESTION
+                            💬 ASK QUESTION
                         </button>
                         <button
-                            onClick={() => { setMode('guess'); setShowCharacters(true); }}
-                            className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${mode === 'guess' ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                            onClick={() => setGuessMode(true)}
+                            className={`flex-1 py-3 rounded-lg font-bold text-sm transition ${guessMode ? 'bg-orange-600 text-white animate-pulse' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                         >
-                            GUESS WHO
+                            🎯 GUESS WHO
                         </button>
                     </div>
 
-                    <div className="relative">
-                        <input
-                            value={input}
-                            onChange={(e) => {
-                                setInput(e.target.value);
-                                if (mode === 'guess') setShowCharacters(true);
-                            }}
-                            onFocus={() => mode === 'guess' && setShowCharacters(true)}
-                            placeholder={mode === 'ask' ? "Ask a question (e.g. 'Do they have glasses?')..." : "Type character name to guess..."}
-                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-4 pr-24 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && input.trim()) {
-                                    sendAction(mode === 'ask' ? 'ASK' : 'GUESS', input);
-                                }
-                            }}
-                        />
-                        <div className="absolute right-2 top-2 bottom-2 flex gap-1">
-                            <button onClick={startListening} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
-                                <Mic size={20} />
-                            </button>
-                            <button
-                                onClick={() => sendAction(mode === 'ask' ? 'ASK' : 'GUESS', input)}
-                                disabled={!input.trim()}
-                                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white px-4 rounded-lg font-bold transition flex items-center"
-                            >
-                                <Send size={18} />
-                            </button>
-                        </div>
-
-                        {/* Character autocomplete dropdown */}
-                        {showCharacters && mode === 'guess' && filteredCharacters.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden z-20 max-h-48 overflow-y-auto">
-                                {filteredCharacters.map(char => (
-                                    <button
-                                        key={char.id}
-                                        onClick={() => {
-                                            setInput(char.name);
-                                            setShowCharacters(false);
-                                        }}
-                                        className="w-full text-left px-4 py-2 hover:bg-slate-700 text-white flex items-center gap-2"
-                                    >
-                                        <span className="font-bold">{char.name}</span>
-                                    </button>
-                                ))}
+                    {!guessMode ? (
+                        /* Ask question mode */
+                        <div className="relative">
+                            <input
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Ask a question (e.g. 'Do they have glasses?')..."
+                                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-4 pr-24 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && input.trim()) {
+                                        sendAction('ASK', input);
+                                    }
+                                }}
+                            />
+                            <div className="absolute right-2 top-2 bottom-2 flex gap-1">
+                                <button onClick={startListening} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
+                                    <Mic size={20} />
+                                </button>
+                                <button
+                                    onClick={() => sendAction('ASK', input)}
+                                    disabled={!input.trim()}
+                                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white px-4 rounded-lg font-bold transition flex items-center"
+                                >
+                                    <Send size={18} />
+                                </button>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : (
+                        /* Guess mode - show instruction */
+                        <div className="bg-orange-900/30 border border-orange-600/50 rounded-xl p-4 text-center">
+                            <p className="text-orange-400 font-bold">Click on a character above to make your guess!</p>
+                            <p className="text-orange-400/70 text-sm mt-1">Choose wisely - wrong guesses lose the game!</p>
+                        </div>
+                    )}
 
                     <div className="flex justify-between items-center">
-                        {suggestion && (
+                        {suggestion && !guessMode && (
                             <div
                                 className="text-xs text-blue-400 flex items-center gap-1 cursor-pointer hover:text-blue-300"
                                 onClick={() => setInput(suggestion)}
@@ -265,3 +246,4 @@ export default function GameControls({ game, playerId }: { game: GameState, play
         </div>
     );
 }
+
