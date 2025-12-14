@@ -47,7 +47,7 @@ function ActivePlayerView({ game, playerId, activePlayers }: { game: GameState, 
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-1 sm:px-4 pb-20">
+            <div className="flex-1 overflow-y-auto px-1 sm:px-4 pb-4">
                 <GameBoard
                     game={game}
                     targetPlayerId={targetPlayerId}
@@ -97,7 +97,7 @@ function SpectatorView({ game, activePlayers, viewerId }: { game: GameState, act
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-slate-900/30 rounded-xl border border-white/5 p-2">
+            <div className="flex-1 overflow-y-auto bg-slate-900/30 rounded-xl border border-white/5 p-2 mb-2">
                 <GameBoard
                     game={game}
                     targetPlayerId={targetPlayer.id}
@@ -713,7 +713,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 })()}
 
                 {/* Board Area */}
-                <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-slate-950/50 relative">
+                <div className="flex-1 overflow-hidden p-0 bg-slate-950/50 relative flex flex-col">
                     {/* If match not playing and not host overlay, show "Waiting" */}
                     {game.matchStatus === 'lobby' && !iamHost && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">

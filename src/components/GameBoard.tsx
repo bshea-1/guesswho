@@ -82,7 +82,7 @@ export default function GameBoard({ game, targetPlayerId, viewerId }: { game: Ga
                 </div>
             )}
 
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 pb-20 p-2">
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 pb-4 p-2">
                 {CHARACTERS.map((char) => {
                     const isEliminated = eliminatedIds.includes(char.id);
                     // Only pass isMyChar if we are allowed to see it
