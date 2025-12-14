@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GameClient({ roomId }: { roomId: string }) {
     const router = useRouter();
-    const { playerId, game, setGame, setRoomId } = useGameStore();
+    const { playerId, game, setGame, setRoomId, clearGame } = useGameStore();
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
     const [chatInput, setChatInput] = useState('');
@@ -24,6 +24,11 @@ export default function GameClient({ roomId }: { roomId: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const handleLeaveParty = () => {
+        clearGame();
+        router.push('/');
+    };
+
     // Initial Fetch & Subscribe
     useEffect(() => {
         setRoomId(roomId);
@@ -32,6 +37,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
         fetch(`/api/game/${roomId}?playerId=${playerId || ''}`)
             .then(res => {
                 if (res.status === 404) {
+                    clearGame(); // Clear stale cache
                     router.push('/');
                     return null;
                 }
@@ -57,7 +63,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
         return () => {
             pusher.unsubscribe(`room-${roomId}`);
         };
-    }, [roomId, playerId, router, setGame, setRoomId]);
+    }, [roomId, playerId, router, setGame, setRoomId, clearGame]);
 
     const sendAction = async (type: string, payload: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         await fetch('/api/game/action', {
@@ -123,7 +129,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                     <div className="flex items-center justify-between mb-2">
                         <h2 className="font-bold text-xl text-yellow-400">Guess Who</h2>
                         <button
-                            onClick={() => router.push('/')}
+                            onClick={handleLeaveParty}
                             className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
                             title="Leave Party"
                         >

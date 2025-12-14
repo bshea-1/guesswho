@@ -8,7 +8,7 @@ import { Loader2, Plus, Users, Eye, Tv, X, Check } from 'lucide-react';
 
 export default function HomeClient() {
     const router = useRouter();
-    const { username, setUsername, playerId, setPlayerId, roomId, setRoomId } = useGameStore();
+    const { username, setUsername, playerId, setPlayerId, roomId, setRoomId, clearGame } = useGameStore();
     const [localName, setLocalName] = useState(username);
     const [mode, setMode] = useState<'create' | 'join' | 'spectate' | null>(null);
     // Removed gameMode state
@@ -23,10 +23,9 @@ export default function HomeClient() {
     const hasActiveGame = !!(roomId && playerId);
 
     const clearActiveGame = useCallback(() => {
-        setRoomId(null);
-        setPlayerId(null);
+        clearGame();
         setShowBanner(false);
-    }, [setRoomId, setPlayerId]);
+    }, [clearGame]);
 
     // Banner Logic: Delay 5s and check validity
     useEffect(() => {
@@ -43,7 +42,8 @@ export default function HomeClient() {
                     return;
                 }
                 const data = await res.json();
-                if (data.status === 'finished') {
+                // Clear if the game/match is finished or doesn't exist
+                if (data.status === 'finished' || data.matchStatus === 'finished') {
                     clearActiveGame();
                 } else {
                     setShowBanner(true);
@@ -315,6 +315,11 @@ export default function HomeClient() {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Footer Credit */}
+            <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-slate-600 text-xs">
+                Site made by Brennan Shea
+            </p>
         </div>
     );
 }
