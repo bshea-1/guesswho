@@ -226,48 +226,65 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
     if (type === 'START_MATCH') {
         if (state.hostId !== playerId) throw new Error('Only host can start match');
 
-        // Payload should be { p1Id, p2Id } or fallback to top 2 in queue
         let p1Id = payload?.p1Id;
         let p2Id = payload?.p2Id;
+        let currentQueue = [...state.queue];
 
         if (!p1Id || !p2Id) {
             // Auto Mode: Winner vs Queue
             const winnerId = state.winnerId;
-            const hasQueue = state.queue.length > 0;
 
+            // 1. Identify Loser and Rotate to Queue
+            if (winnerId && state.matchStatus === 'finished') {
+                const activeIds = Object.values(state.players)
+                    .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
+                    .map(p => p.id);
+                // The loser is the active player who is NOT the winner
+                const loserId = activeIds.find(id => id !== winnerId);
+
+                // Add loser to queue if they exist and aren't already there
+                if (loserId && !currentQueue.includes(loserId)) {
+                    currentQueue.push(loserId);
+                }
+            }
+
+            // 2. Pick Players
             if (winnerId && state.players[winnerId]) {
                 // Winner stays!
                 p1Id = winnerId;
 
-                if (hasQueue) {
-                    p2Id = state.queue[0];
+                // Challenger comes from front of queue
+                if (currentQueue.length > 0) {
+                    p2Id = currentQueue[0];
                 } else {
-                    // No one in queue? 
-                    // Can't start a match with just the winner.
-                    // Maybe check if the looser is still there? 
-                    // But requirement says "pushing the person in the queue up".
-                    // If no queue, maybe we can't auto start?
-                    throw new Error('Waiting for players to join queue');
+                    // No one else? Loser just rotated in, so play them again?
+                    // If queue was empty before loser rotated, currentQueue has [loserId]
+                    // So P2 = loserId. Rematch!
+                    if (currentQueue.length === 0) throw new Error('Not enough players');
                 }
             } else {
                 // First match or no winner recorded
-                if (state.queue.length >= 2) {
-                    p1Id = state.queue[0];
-                    p2Id = state.queue[1];
-                } else if (state.queue.length === 1 && state.hostId) {
+                if (currentQueue.length >= 2) {
+                    p1Id = currentQueue[0];
+                    p2Id = currentQueue[1];
+                } else if (currentQueue.length === 1 && state.hostId) {
                     p1Id = state.hostId;
-                    p2Id = state.queue[0];
+                    p2Id = currentQueue[0];
                 } else {
                     throw new Error('Not enough players in queue');
                 }
             }
         }
 
-        // Handle the "Loser" from previous match if they are not p1 or p2
-        // They should be moved to queue? Or just spectator?
-        // Let's ensure anyone who WAS a player but is NOT in the new match gets cleanup handled by startMatchLogic
+        // Safety check
+        if (!p1Id || !p2Id) throw new Error('Unable to determine players');
 
-        return startMatchLogic(state, p1Id!, p2Id!);
+        // Pass the UPDATED queue (with loser added) to logic via state override?
+        // startMatchLogic filters out p1/p2 from queue, but doesn't ADD the loser.
+        // So we need to update state.queue first or pass it.
+        const stateWithQueue = { ...state, queue: currentQueue };
+
+        return startMatchLogic(stateWithQueue, p1Id, p2Id);
     }
 
 
@@ -307,14 +324,20 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         // Better way: Find the other active player
         const opponentId = activeIds.find(id => id !== playerId);
 
+        // If HOST force-ended it (and Host wasn't playing, or explicitly chose strict end)
+        // Actually, if playerId == hostId, we can say it's a "No Contest"
+        const isHostAction = playerId === state.hostId;
+
         return {
             ...state,
             matchStatus: 'finished',
-            winnerId: opponentId || null,
+            winnerId: isHostAction ? null : (opponentId || null),
             history: [...state.history, {
                 playerId: 'system',
                 action: 'GAME_OVER',
-                content: `${state.players[playerId]?.name || 'Player'} forfeited the game`,
+                content: isHostAction
+                    ? `Game ended by Host`
+                    : `${state.players[playerId]?.name || 'Player'} forfeited the game`,
                 timestamp: Date.now()
             }],
         };
