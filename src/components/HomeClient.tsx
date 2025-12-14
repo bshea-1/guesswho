@@ -11,6 +11,7 @@ export default function HomeClient() {
     const { username, setUsername, setPlayerId, setRoomId } = useGameStore();
     const [localName, setLocalName] = useState(username);
     const [mode, setMode] = useState<'create' | 'join' | 'spectate' | null>(null);
+    const [gameMode, setGameMode] = useState<'regular' | 'text'>('regular');
     const [roomCode, setRoomCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -27,8 +28,8 @@ export default function HomeClient() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     hostName: localName,
-                    mode: 'regular',
-                    visibility: 'public'
+                    mode: gameMode,
+                    visibility: gameMode === 'text' ? 'public' : 'unlisted'
                 }),
             });
 
@@ -123,6 +124,27 @@ export default function HomeClient() {
 
                         {mode === 'create' && (
                             <div className="space-y-4 pt-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Game Mode</label>
+                                    <div className="grid grid-cols-2 gap-2" id="game-mode-selector">
+                                        <button
+                                            type="button"
+                                            onClick={() => setGameMode('regular')}
+                                            className={`p-3 rounded-lg font-bold text-sm transition border-2 ${gameMode === 'regular' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                        >
+                                            🎭 Regular
+                                            <span className="block text-xs font-normal opacity-70">Private game</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setGameMode('text')}
+                                            className={`p-3 rounded-lg font-bold text-sm transition border-2 ${gameMode === 'text' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                        >
+                                            💬 Text Mode
+                                            <span className="block text-xs font-normal opacity-70">Public match</span>
+                                        </button>
+                                    </div>
+                                </div>
                                 <button onClick={handleCreate} disabled={loading} className="w-full bg-green-600 hover:bg-green-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">
                                     {loading ? <Loader2 className="animate-spin" /> : 'Start Game'}
                                 </button>

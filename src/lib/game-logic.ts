@@ -57,7 +57,7 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT';
     payload?: any;
 };
 
@@ -80,6 +80,22 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 ...state.players,
                 [playerId]: { ...player, eliminatedIds: newEliminated }
             }
+        };
+    }
+
+    // Handle FORFEIT anytime
+    if (type === 'FORFEIT') {
+        const opponentId = Object.keys(state.players).find(id => id !== playerId);
+        return {
+            ...state,
+            status: 'finished',
+            winnerId: opponentId || null,
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'GAME_OVER',
+                content: `${state.players[playerId]?.name || 'Player'} forfeited the game`,
+                timestamp: Date.now()
+            }],
         };
     }
 
@@ -113,42 +129,71 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
     if (type === 'ASK') {
         if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
 
+        // Switch turn to opponent after asking
+        const opponentId = Object.keys(state.players).find(id => id !== playerId);
+
         return {
             ...state,
+            turnPlayerId: opponentId || null, // Switch to opponent for answer
             history: [...state.history, { playerId, action: 'ask', content: payload, timestamp: Date.now() }],
         };
     }
 
     if (type === 'ANSWER') {
+        // After answering, switch turn back to the asker (opponent)
+        const opponentId = Object.keys(state.players).find(id => id !== playerId);
+
         return {
             ...state,
+            turnPlayerId: opponentId || null, // Switch back to asker
             history: [...state.history, { playerId, action: 'answer', content: payload, timestamp: Date.now() }],
         };
     }
 
     if (type === 'GUESS') {
         if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
-        const targetId = payload;
+        const guessInput = payload;
 
         const opponentId = Object.keys(state.players).find(id => id !== playerId);
         if (!opponentId) throw new Error('No opponent');
         const opponent = state.players[opponentId];
 
-        const isCorrect = opponent.characterId === targetId;
+        // Map name to ID (case-insensitive)
+        const guessedChar = CHARACTERS.find(c =>
+            c.id.toLowerCase() === guessInput.toLowerCase() ||
+            c.name.toLowerCase() === guessInput.toLowerCase()
+        );
+
+        if (!guessedChar) {
+            throw new Error(`Character "${guessInput}" not found`);
+        }
+
+        const isCorrect = opponent.characterId === guessedChar.id;
+        const opponentCharName = CHARACTERS.find(c => c.id === opponent.characterId)?.name || 'Unknown';
 
         if (isCorrect) {
             return {
                 ...state,
                 status: 'finished',
                 winnerId: playerId,
-                history: [...state.history, { playerId, action: 'guess', content: `Guessed ${targetId} CORRECTLY!`, timestamp: Date.now() }],
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'WIN',
+                    content: `${state.players[playerId]?.name} correctly guessed ${guessedChar.name}!`,
+                    timestamp: Date.now()
+                }],
             };
         } else {
             return {
                 ...state,
                 status: 'finished',
-                winnerId: opponentId, // Opponent wins
-                history: [...state.history, { playerId, action: 'guess', content: `Guessed ${targetId} INCORRECTLY!`, timestamp: Date.now() }],
+                winnerId: opponentId,
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'GAME_OVER',
+                    content: `${state.players[playerId]?.name} guessed ${guessedChar.name} incorrectly. It was ${opponentCharName}!`,
+                    timestamp: Date.now()
+                }],
             };
         }
     }
@@ -160,7 +205,6 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         return {
             ...state,
             turnPlayerId: opponentId || null,
-            history: [...state.history, { playerId, action: 'ask', content: 'Ends Turn', timestamp: Date.now() }],
         };
     }
 
