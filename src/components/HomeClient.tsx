@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
 import { Loader2, Plus, Users, Eye, Tv, X, Check } from 'lucide-react';
@@ -126,8 +126,7 @@ export default function HomeClient() {
         }
     };
 
-    const handleJoin = async (isSpectator: boolean = false) => {
-        if (!roomCode.trim()) { setError('Room Code is required'); return; }
+    const executeJoin = async (code: string, isSpectator: boolean) => {
         setLoading(true);
         setError('');
 
@@ -137,7 +136,7 @@ export default function HomeClient() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    roomId: roomCode,
+                    roomId: code,
                     playerName: undefined, // Will default
                     isSpectator // boolean
                 }),
@@ -149,7 +148,7 @@ export default function HomeClient() {
             setPlayerId(data.playerId);
             setRoomId(data.roomId);
 
-            // Now prompt for name (unless spectating - maybe spectators don't need names? Assuming yes for now)
+            // Now prompt for name
             setMode(null);
             setNamingMode(true);
             setLoading(false);
@@ -158,6 +157,33 @@ export default function HomeClient() {
             setLoading(false);
         }
     };
+
+    const handleJoin = async (isSpectator: boolean = false) => {
+        if (!roomCode.trim()) { setError('Room Code is required'); return; }
+        await executeJoin(roomCode, isSpectator);
+    };
+
+    // Check for URL Code
+    const searchParams = useSearchParams();
+    useEffect(() => {
+        const urlCode = searchParams.get('code') || searchParams.get('party');
+        if (!urlCode) return;
+
+        const code = urlCode.toUpperCase();
+
+        // If already in this room, go there
+        if (roomId === code && playerId) {
+            router.push(`/game/${code}`);
+            return;
+        }
+
+        // Otherwise start join process (defaulting to player/standard join)
+        // We only do this if we aren't already loading or in error state to prevent loops
+        if (!loading && !error && !namingMode) {
+            executeJoin(code, false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, roomId, playerId]);
 
     // If we are in naming mode, show that UI exclusively
     if (namingMode) {

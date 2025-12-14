@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
@@ -72,7 +72,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
         };
     }, [roomId, playerId, router, setGame, setRoomId, clearGame]);
 
-    const sendAction = async (type: string, payload: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const sendAction = useCallback(async (type: string, payload: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         await fetch('/api/game/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -83,7 +83,18 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 payload
             })
         });
-    };
+    }, [roomId, playerId]);
+
+    // Auto-Queue Next Match
+    useEffect(() => {
+        if (game?.matchStatus === 'finished' && game.hostId === playerId) {
+            console.log('Match finished. Starting next match in 5s...');
+            const timer = setTimeout(() => {
+                sendAction('START_MATCH', null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [game?.matchStatus, game?.hostId, playerId, sendAction]);
 
 
 

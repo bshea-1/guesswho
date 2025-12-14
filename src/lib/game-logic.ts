@@ -229,33 +229,43 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         let p2Id = payload?.p2Id;
 
         if (!p1Id || !p2Id) {
-            // Host Logic:
-            // 1. If HOST is not in queue AND there's only 1 person in queue, Host plays against them?
-            // 2. If 2 people in queue, they play.
-            // 3. User Requirement: "Host can be a spectator in later matches"
-            // "Host can choose to leave match and become spectator" (handled by game over / reset)
+            // Auto Mode: Winner vs Queue
+            const winnerId = state.winnerId;
+            const hasQueue = state.queue.length > 0;
 
-            // Simplest auto-selection:
-            // Take top 2 from Queue.
-            // If only 1 in queue, and Host is NOT that person (obviously), Host plays vs Queue[0].
-            // If 0 in queue -> Error? Or Host vs AI? (No AI). 
+            if (winnerId && state.players[winnerId]) {
+                // Winner stays!
+                p1Id = winnerId;
 
-            // Let's implement:
-            // If >= 2 in queue, take top 2.
-            // If 1 in queue, and Host is NOT that person (obviously), Host plays vs Queue[0].
-
-            if (state.queue.length >= 2) {
-                p1Id = state.queue[0];
-                p2Id = state.queue[1];
-            } else if (state.queue.length === 1) {
-                p1Id = state.hostId;
-                p2Id = state.queue[0];
+                if (hasQueue) {
+                    p2Id = state.queue[0];
+                } else {
+                    // No one in queue? 
+                    // Can't start a match with just the winner.
+                    // Maybe check if the looser is still there? 
+                    // But requirement says "pushing the person in the queue up".
+                    // If no queue, maybe we can't auto start?
+                    throw new Error('Waiting for players to join queue');
+                }
             } else {
-                throw new Error('Not enough players (needs 2 in queue or Host + 1)');
+                // First match or no winner recorded
+                if (state.queue.length >= 2) {
+                    p1Id = state.queue[0];
+                    p2Id = state.queue[1];
+                } else if (state.queue.length === 1 && state.hostId) {
+                    p1Id = state.hostId;
+                    p2Id = state.queue[0];
+                } else {
+                    throw new Error('Not enough players in queue');
+                }
             }
         }
 
-        return startMatchLogic(state, p1Id, p2Id);
+        // Handle the "Loser" from previous match if they are not p1 or p2
+        // They should be moved to queue? Or just spectator?
+        // Let's ensure anyone who WAS a player but is NOT in the new match gets cleanup handled by startMatchLogic
+
+        return startMatchLogic(state, p1Id!, p2Id!);
     }
 
 
