@@ -481,7 +481,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
                 {/* HOST OVERLAY LOGIC */}
                 {iamHost && game.matchStatus === 'lobby' && (
-                    <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4 pt-20">
                         <div className="bg-slate-900 border border-yellow-500/30 p-6 rounded-2xl max-w-lg w-full shadow-2xl overflow-y-auto max-h-[80vh]">
                             <h2 className="text-2xl font-bold text-yellow-400 mb-6 text-center">Host Controls</h2>
 
@@ -511,14 +511,6 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                         Start Next Match
                                     </button>
                                     <p className="text-slate-500 text-xs text-center mt-2">Needs at least 2 players in queue</p>
-                                    <div className="mt-4 text-center">
-                                        <button
-                                            onClick={() => setIsSidebarOpen(true)}
-                                            className="text-blue-400 text-sm hover:underline md:hidden"
-                                        >
-                                            Manage Players in Sidebar
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -527,7 +519,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
 
                 {/* Top Bar: Status */}
-                <div className="p-2 sm:p-4 bg-slate-900/80 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-10 shrink-0">
+                <div className="p-2 sm:p-4 bg-slate-900/80 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-50 shrink-0">
                     <div className="flex items-center gap-3">
                         {/* Mobile Menu Toggle & Room Code */}
                         <div className="flex items-center gap-2 md:hidden">
@@ -547,6 +539,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                 {copied && <Check size={10} className="text-green-400" />}
                             </button>
                         </div>
+
 
                         {/* Desktop Room Code (Only if needed, but sidebar covers it usually) */}
 
