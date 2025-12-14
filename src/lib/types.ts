@@ -15,7 +15,7 @@ export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
 export type Turn = {
     playerId: string;
-    action: 'ask' | 'guess' | 'answer' | 'join';
+    action: 'ask' | 'guess' | 'answer' | 'join' | 'WIN' | 'GAME_OVER';
     content: string; // The question or the guess
     timestamp: number;
 };

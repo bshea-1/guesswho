@@ -34,7 +34,7 @@ export default function GameBoard({ game, playerId }: { game: GameState, playerI
     };
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 pb-20">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-2 pb-20 p-2">
             {CHARACTERS.map((char) => {
                 const isEliminated = eliminatedIds.includes(char.id);
                 const isMyChar = char.id === myCharacterId;
@@ -45,9 +45,9 @@ export default function GameBoard({ game, playerId }: { game: GameState, playerI
                         key={char.id}
                         onClick={() => handleToggle(char.id)}
                         className={clsx(
-                            "relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer border-2 transition-all duration-300 group",
-                            isEliminated ? "border-slate-800 opacity-50 grayscale hover:grayscale-0 hover:opacity-75" : "border-blue-500/30 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20 bg-slate-800",
-                            isMyChar && "ring-4 ring-green-500 border-green-500"
+                            "relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 group",
+                            isEliminated ? "border-slate-800 opacity-40 grayscale hover:grayscale-0 hover:opacity-60" : "border-blue-500/30 hover:border-blue-400 hover:shadow-md hover:shadow-blue-500/20 bg-slate-800",
+                            isMyChar && "ring-2 ring-green-500 border-green-500"
                         )}
                     >
                         <Image
@@ -57,19 +57,19 @@ export default function GameBoard({ game, playerId }: { game: GameState, playerI
                             className="object-cover"
                             sizes="(max-width: 768px) 33vw, 15vw"
                         />
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-6">
-                            <p className="text-center font-bold text-sm text-shadow">{char.name}</p>
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1 pt-4">
+                            <p className="text-center font-bold text-xs text-shadow truncate px-1">{char.name}</p>
                         </div>
 
                         {isEliminated && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                <div className="rotate-45 w-full h-1 bg-red-600 absolute" />
-                                <div className="-rotate-45 w-full h-1 bg-red-600 absolute" />
+                                <div className="rotate-45 w-full h-0.5 bg-red-600/80 absolute" />
+                                <div className="-rotate-45 w-full h-0.5 bg-red-600/80 absolute" />
                             </div>
                         )}
 
                         {isMyChar && (
-                            <div className="absolute top-2 right-2 bg-green-600 text-xs px-2 py-0.5 rounded-full font-bold shadow-lg z-10">
+                            <div className="absolute top-1 right-1 bg-green-600 text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm z-10">
                                 YOU
                             </div>
                         )}

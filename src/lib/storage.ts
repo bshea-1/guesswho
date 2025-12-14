@@ -1,62 +1,107 @@
-import { kv } from '@vercel/kv';
 import { GameState } from './types';
+import { supabase } from './supabase';
+import fs from 'fs/promises';
+import path from 'path';
 
-const IS_KV_CONFIGURED = !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN;
+const IS_SUPABASE_CONFIGURED = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const LOCAL_DATA_DIR = path.join(process.cwd(), 'data');
+const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'games.json');
 
-// In-memory fallback for local development without KV
-const localStore = new Map<string, string>();
+// Ensure data directory exists
+const ensureDataDir = async () => {
+    try {
+        await fs.access(LOCAL_DATA_DIR);
+    } catch {
+        await fs.mkdir(LOCAL_DATA_DIR, { recursive: true });
+    }
+};
+
+// Helper to read local file
+const readLocalData = async (): Promise<Record<string, GameState>> => {
+    if (IS_SUPABASE_CONFIGURED) return {};
+    try {
+        await ensureDataDir();
+        const data = await fs.readFile(LOCAL_DATA_FILE, 'utf-8');
+        return JSON.parse(data);
+    } catch {
+        return {};
+    }
+};
+
+// Helper to write local file
+const writeLocalData = async (data: Record<string, GameState>) => {
+    if (IS_SUPABASE_CONFIGURED) return;
+    await ensureDataDir();
+    await fs.writeFile(LOCAL_DATA_FILE, JSON.stringify(data, null, 2));
+};
 
 export const gameStorage = {
     async getGame(roomId: string): Promise<GameState | null> {
-        if (IS_KV_CONFIGURED) {
-            return await kv.get<GameState>(`game:${roomId}`);
+        if (IS_SUPABASE_CONFIGURED) {
+            const { data, error } = await supabase
+                .from('games')
+                .select('state')
+                .eq('room_id', roomId)
+                .single();
+
+            if (error || !data) return null;
+            return data.state as GameState;
         }
-        const data = localStore.get(`game:${roomId}`);
-        return data ? JSON.parse(data) : null;
+        const games = await readLocalData();
+        return games[roomId] || null;
     },
 
     async saveGame(roomId: string, state: GameState): Promise<void> {
-        if (IS_KV_CONFIGURED) {
-            await kv.set(`game:${roomId}`, state, { ex: 86400 });
-            if (state.settings.visibility === 'public' && state.status !== 'finished') {
-                await kv.sadd('public_matches', roomId);
-            } else if (state.status === 'finished') {
-                await kv.srem('public_matches', roomId);
-                // Optional: Move to 'recent_matches' list?
-                await kv.lpush('recent_matches', JSON.stringify({ roomId, winnerId: state.winnerId, timestamp: Date.now() }));
-                await kv.ltrim('recent_matches', 0, 49); // Keep last 50
+        if (IS_SUPABASE_CONFIGURED) {
+            const { error } = await supabase
+                .from('games')
+                .upsert({
+                    room_id: roomId,
+                    state: state,
+                    visibility: state.settings.visibility,
+                    status: state.status,
+                });
+
+            if (error) {
+                console.error('Supabase save error:', error);
+                throw new Error('Failed to save game state');
             }
         } else {
-            localStore.set(`game:${roomId}`, JSON.stringify(state));
-            // Local mock for set?
+            const games = await readLocalData();
+            games[roomId] = state;
+            await writeLocalData(games);
         }
     },
 
     async getPublicMatches(): Promise<GameState[]> {
-        if (IS_KV_CONFIGURED) {
-            const ids = await kv.smembers('public_matches');
-            if (!ids.length) return [];
+        if (IS_SUPABASE_CONFIGURED) {
+            const { data, error } = await supabase
+                .from('games')
+                .select('state')
+                .eq('visibility', 'public')
+                .neq('status', 'finished')
+                .order('created_at', { ascending: false })
+                .limit(50);
 
-            // Batch fetch
-            // kv.mget is ideal but requires keys.
-            const keys = ids.map(id => `game:${id}`);
-            if (keys.length === 0) return [];
-
-            const games = await kv.mget<GameState[]>(...keys);
-            return games.filter(g => g !== null) as GameState[];
+            if (error || !data) return [];
+            return data.map(row => row.state as GameState);
         } else {
-            // Local filter
-            return Array.from(localStore.values())
-                .map(s => JSON.parse(s) as GameState)
+            const games = await readLocalData();
+            return Object.values(games)
                 .filter(g => g.settings.visibility === 'public' && g.status !== 'finished');
         }
     },
 
     async deleteGame(roomId: string): Promise<void> {
-        if (IS_KV_CONFIGURED) {
-            await kv.del(`game:${roomId}`);
+        if (IS_SUPABASE_CONFIGURED) {
+            await supabase
+                .from('games')
+                .delete()
+                .eq('room_id', roomId);
         } else {
-            localStore.delete(`game:${roomId}`);
+            const games = await readLocalData();
+            delete games[roomId];
+            await writeLocalData(games);
         }
     }
 };
