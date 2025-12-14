@@ -6,8 +6,8 @@ import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
 import { GameState, Player, Turn } from '@/lib/types';
 import { Loader2, Copy, Check, Home, Crown } from 'lucide-react';
-import GameBoard from './GameBoard';
-import GameControls from './GameControls';
+import GameBoard from '@/components/GameBoard';
+import GameControls from '@/components/GameControls';
 // import GameLog from './GameLog'; // Removed unused import
 import { motion, AnimatePresence } from 'framer-motion';
 
