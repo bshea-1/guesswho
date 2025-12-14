@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { gameStorage } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request, { params }: { params: Promise<{ roomId: string }> }) {
     const { roomId } = await params;
 

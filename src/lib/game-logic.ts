@@ -1,5 +1,6 @@
 import { GameState, Player, Character, Turn } from './types';
 import { CHARACTERS } from './characters';
+import { sanitizeName } from './validation';
 
 export function createInitialGameState(
     roomId: string,
@@ -57,7 +58,7 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME';
     payload?: any;
 };
 
@@ -126,6 +127,19 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         return state;
     }
 
+    if (type === 'UPDATE_NAME') {
+        const newName = payload;
+        if (!newName || typeof newName !== 'string') throw new Error('Invalid name');
+
+        return {
+            ...state,
+            players: {
+                ...state.players,
+                [playerId]: { ...state.players[playerId], name: sanitizeName(newName) }
+            }
+        };
+    }
+
     if (type === 'ASK') {
         if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
 
@@ -140,12 +154,10 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
     }
 
     if (type === 'ANSWER') {
-        // After answering, switch turn back to the asker (opponent)
-        const opponentId = Object.keys(state.players).find(id => id !== playerId);
-
+        // After answering, the answerer (current player) gets to ask a question next
         return {
             ...state,
-            turnPlayerId: opponentId || null, // Switch back to asker
+            turnPlayerId: playerId, // Keep turn with the answerer so they can ask
             history: [...state.history, { playerId, action: 'answer', content: payload, timestamp: Date.now() }],
         };
     }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
-import { Loader2, Plus, Users, Eye, Tv, ArrowRight, X } from 'lucide-react';
+import { Loader2, Plus, Users, Eye, Tv, ArrowRight, X, Check } from 'lucide-react';
 
 export default function HomeClient() {
     const router = useRouter();
@@ -15,27 +15,84 @@ export default function HomeClient() {
     const [roomCode, setRoomCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showBanner, setShowBanner] = useState(false);
+    const [namingMode, setNamingMode] = useState(false); // New state for name entry step
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
 
+    // Banner Logic: Delay 5s and check validity
+    useEffect(() => {
+        if (!hasActiveGame) {
+            setShowBanner(false);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/game/${roomId}?playerId=${playerId}`);
+                if (res.status === 404) {
+                    clearActiveGame();
+                    return;
+                }
+                const data = await res.json();
+                if (data.status === 'finished') {
+                    clearActiveGame();
+                } else {
+                    setShowBanner(true);
+                }
+            } catch (e) {
+                console.error('Failed to validate game existence', e);
+            }
+        }, 5000);
+
+        return () => clearTimeout(timer);
+    }, [hasActiveGame, roomId, playerId]);
+
     const clearActiveGame = () => {
         setRoomId(null);
         setPlayerId(null);
+        setShowBanner(false);
     };
 
-    const handleCreate = async () => {
+    const handleNameSubmit = async () => {
         if (!localName.trim()) { setError('Name is required'); return; }
         setLoading(true);
         setError('');
 
         try {
-            setUsername(localName); // Persist
+            setUsername(localName);
+            // Send UPDATE_NAME action
+            await fetch('/api/game/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId,
+                    playerId,
+                    type: 'UPDATE_NAME',
+                    payload: localName
+                })
+            });
+
+            // Proceed to game
+            router.push(`/game/${roomId}`);
+        } catch (e: any) {
+            setError(e.message);
+            setLoading(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        setLoading(true);
+        setError('');
+
+        try {
+            // Create with default name first
             const res = await fetch('/api/room/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    hostName: localName,
+                    hostName: undefined, // Will default to 'Host'
                     mode: gameMode,
                     visibility: gameMode === 'text' ? 'public' : 'unlisted'
                 }),
@@ -44,31 +101,33 @@ export default function HomeClient() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
+            // Successfully created room
             setPlayerId(data.playerId);
             setRoomId(data.roomId);
-            router.push(`/game/${data.roomId}`);
+
+            // Now prompt for name
+            setMode(null);
+            setNamingMode(true);
+            setLoading(false);
         } catch (e: any) {
             setError(e.message);
-        } finally {
             setLoading(false);
         }
     };
 
     const handleJoin = async (isSpectator: boolean = false) => {
-        if (!localName.trim()) { setError('Name is required'); return; }
         if (!roomCode.trim()) { setError('Room Code is required'); return; }
         setLoading(true);
         setError('');
 
         try {
-            setUsername(localName);
-            // Check if room exists first? Or just try to join
+            // Join with default name first
             const res = await fetch('/api/room/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     roomId: roomCode,
-                    playerName: localName
+                    playerName: undefined // Will default
                 }),
             });
 
@@ -77,13 +136,59 @@ export default function HomeClient() {
 
             setPlayerId(data.playerId);
             setRoomId(data.roomId);
-            router.push(`/game/${data.roomId}`);
+
+            // Now prompt for name (unless spectating - maybe spectators don't need names? Assuming yes for now)
+            setMode(null);
+            setNamingMode(true);
+            setLoading(false);
         } catch (e: any) {
             setError(e.message);
-        } finally {
             setLoading(false);
         }
     };
+
+    // If we are in naming mode, show that UI exclusively
+    if (namingMode) {
+        return (
+            <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl space-y-6"
+                >
+                    <div className="text-center">
+                        <div className="inline-block p-3 rounded-full bg-green-500/20 text-green-400 mb-4">
+                            <Check size={32} />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">You're in!</h2>
+                        <p className="text-slate-400">Room: <span className="font-mono text-white">{roomId}</span></p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-1">What should we call you?</label>
+                        <input
+                            value={localName}
+                            onChange={(e) => setLocalName(e.target.value)}
+                            placeholder="Enter display name..."
+                            autoFocus
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                            onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
+                        />
+                    </div>
+
+                    <button onClick={handleNameSubmit} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                        {loading ? <Loader2 className="animate-spin" /> : 'Enter Game'}
+                    </button>
+
+                    {error && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg text-center">
+                            {error}
+                        </div>
+                    )}
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
@@ -100,8 +205,8 @@ export default function HomeClient() {
                 </div>
 
                 <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
-                    {/* Current Game Banner */}
-                    {hasActiveGame && (
+                    {/* Current Game Banner - Only show if state is true (after delay) */}
+                    {showBanner && (
                         <div className="mb-6 p-4 bg-green-900/30 border border-green-600/50 rounded-xl">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -128,15 +233,7 @@ export default function HomeClient() {
                     )}
 
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-400 mb-1">Display Name</label>
-                            <input
-                                value={localName}
-                                onChange={(e) => setLocalName(e.target.value)}
-                                placeholder="Enter your name..."
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
-                            />
-                        </div>
+                        {/* Name input removed from landing page */}
 
                         {!mode && (
                             <div className="grid grid-cols-1 gap-3 pt-4">

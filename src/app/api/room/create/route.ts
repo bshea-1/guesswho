@@ -17,7 +17,8 @@ export async function POST(req: Request) {
         }
 
         const { hostName, mode, visibility } = result.data;
-        const cleanName = sanitizeName(hostName);
+        // Default name if empty string provided
+        const cleanName = sanitizeName(hostName || 'Host');
 
         // Generate Room ID
         let roomId = nanoid();

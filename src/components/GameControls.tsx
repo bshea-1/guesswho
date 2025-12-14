@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GameState } from '@/lib/types';
 import { useGameStore } from '@/lib/store';
 import { Mic, Send, AlertCircle, Flag, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
@@ -130,39 +131,38 @@ export default function GameControls({ game, playerId }: { game: GameState, play
 
     return (
         <div className="flex flex-col gap-3 max-w-4xl mx-auto">
-            {/* When it's NOT my turn - show answer buttons if waiting for answer */}
-            {!isMyTurn ? (
+            {/* PRIORITIZE ANSWERING: If someone asked me a question, I must answer it first, even if it's my turn now. */}
+            {waitingForAnswer ? (
                 <div className="flex flex-col items-center gap-3">
-                    {waitingForAnswer ? (
-                        <>
-                            <p className="text-slate-400 text-sm">Your opponent asked a question. Answer:</p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => sendAction('ANSWER', 'Yes')}
-                                    className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold transition"
-                                >
-                                    <CheckCircle size={20} /> YES
-                                </button>
-                                <button
-                                    onClick={() => sendAction('ANSWER', 'No')}
-                                    className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-bold transition"
-                                >
-                                    <XCircle size={20} /> NO
-                                </button>
-                                <button
-                                    onClick={() => sendAction('ANSWER', 'Not sure')}
-                                    className="flex items-center gap-2 bg-slate-600 hover:bg-slate-500 text-white px-4 py-3 rounded-xl font-bold transition"
-                                >
-                                    <HelpCircle size={20} /> NOT SURE
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="text-slate-500 py-2 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                            Waiting for opponent...
-                        </div>
-                    )}
+                    <p className="text-slate-400 text-sm">Your opponent asked a question. Answer:</p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => sendAction('ANSWER', 'Yes')}
+                            className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold transition"
+                        >
+                            <CheckCircle size={20} /> YES
+                        </button>
+                        <button
+                            onClick={() => sendAction('ANSWER', 'No')}
+                            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-bold transition"
+                        >
+                            <XCircle size={20} /> NO
+                        </button>
+                        <button
+                            onClick={() => sendAction('ANSWER', 'Not sure')}
+                            className="flex items-center gap-2 bg-slate-600 hover:bg-slate-500 text-white px-4 py-3 rounded-xl font-bold transition"
+                        >
+                            <HelpCircle size={20} /> NOT SURE
+                        </button>
+                    </div>
+                </div>
+            ) : !isMyTurn ? (
+                /* NOT MY TURN and No Question to Answer -> Waiting */
+                <div className="flex flex-col items-center gap-3">
+                    <div className="text-slate-500 py-2 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                        Waiting for opponent...
+                    </div>
                 </div>
             ) : (
                 /* MY TURN - Show ask/guess controls */
@@ -182,40 +182,58 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                         </button>
                     </div>
 
-                    {!guessMode ? (
-                        /* Ask question mode */
-                        <div className="relative">
-                            <input
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ask a question (e.g. 'Do they have glasses?')..."
-                                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-4 pr-24 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && input.trim()) {
-                                        sendAction('ASK', input);
-                                    }
-                                }}
-                            />
-                            <div className="absolute right-2 top-2 bottom-2 flex gap-1">
-                                <button onClick={startListening} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
-                                    <Mic size={20} />
-                                </button>
-                                <button
-                                    onClick={() => sendAction('ASK', input)}
-                                    disabled={!input.trim()}
-                                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white px-4 rounded-lg font-bold transition flex items-center"
+                    <div className="relative overflow-hidden min-h-[120px]">
+                        <AnimatePresence mode="wait">
+                            {!guessMode ? (
+                                /* Ask question mode */
+                                <motion.div
+                                    key="ask-mode"
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="relative"
                                 >
-                                    <Send size={18} />
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        /* Guess mode - show instruction */
-                        <div className="bg-orange-900/30 border border-orange-600/50 rounded-xl p-4 text-center">
-                            <p className="text-orange-400 font-bold">Click on a character above to make your guess!</p>
-                            <p className="text-orange-400/70 text-sm mt-1">Choose wisely - wrong guesses lose the game!</p>
-                        </div>
-                    )}
+                                    <input
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        placeholder="Ask a question (e.g. 'Do they have glasses?')..."
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-4 pr-24 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && input.trim()) {
+                                                sendAction('ASK', input);
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute right-2 top-2 bottom-2 flex gap-1">
+                                        <button onClick={startListening} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
+                                            <Mic size={20} />
+                                        </button>
+                                        <button
+                                            onClick={() => sendAction('ASK', input)}
+                                            disabled={!input.trim()}
+                                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white px-4 rounded-lg font-bold transition flex items-center"
+                                        >
+                                            <Send size={18} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                /* Guess mode - show instruction */
+                                <motion.div
+                                    key="guess-mode"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="bg-orange-900/30 border border-orange-600/50 rounded-xl p-4 text-center h-[60px] flex flex-col justify-center items-center"
+                                >
+                                    <p className="text-orange-400 font-bold">Click on a character above to make your guess!</p>
+                                    <p className="text-orange-400/70 text-sm mt-1">Choose wisely - wrong guesses lose the game!</p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
                     <div className="flex justify-between items-center">
                         {suggestion && !guessMode && (

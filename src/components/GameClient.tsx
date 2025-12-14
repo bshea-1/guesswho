@@ -9,6 +9,7 @@ import { Loader2, Copy, Check, Home } from 'lucide-react';
 import GameBoard from './GameBoard';
 import GameControls from './GameControls';
 import GameLog from './GameLog';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GameClient({ roomId }: { roomId: string }) {
     const router = useRouter();
@@ -150,24 +151,50 @@ export default function GameClient({ roomId }: { roomId: string }) {
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Top Bar: Status */}
                 <div className="p-4 bg-slate-900/80 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-10">
-                    <div className="font-bold text-lg">
-                        {game.status === 'playing' ? (
-                            game.turnPlayerId === playerId ?
-                                <span className="text-green-400 flex items-center gap-2">
-                                    <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                                    YOUR TURN
-                                </span> :
-                                <span className="text-yellow-400 flex items-center gap-2">
-                                    <span className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
-                                    OPPONENT'S TURN
-                                </span>
-                        ) : game.status === 'finished' ? (
-                            <span className={game.winnerId === playerId ? 'text-green-400' : 'text-red-400'}>
-                                {game.winnerId === playerId ? '🎉 YOU WON!' : '😔 GAME OVER'}
-                            </span>
-                        ) : (
-                            <span className="text-yellow-400">{game.status.toUpperCase()}</span>
-                        )}
+                    <div className="font-bold text-lg overflow-hidden h-8 flex items-center">
+                        <AnimatePresence mode="wait">
+                            {game.status === 'playing' ? (
+                                game.turnPlayerId === playerId ?
+                                    <motion.span
+                                        key="my-turn"
+                                        initial={{ y: 20, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        exit={{ y: -20, opacity: 0 }}
+                                        className="text-green-400 flex items-center gap-2"
+                                    >
+                                        <span className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                                        YOUR TURN
+                                    </motion.span> :
+                                    <motion.span
+                                        key="opp-turn"
+                                        initial={{ y: 20, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        exit={{ y: -20, opacity: 0 }}
+                                        className="text-yellow-400 flex items-center gap-2"
+                                    >
+                                        <span className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
+                                        OPPONENT'S TURN
+                                    </motion.span>
+                            ) : game.status === 'finished' ? (
+                                <motion.span
+                                    key="finished"
+                                    initial={{ scale: 0.8, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className={game.winnerId === playerId ? 'text-green-400' : 'text-red-400'}
+                                >
+                                    {game.winnerId === playerId ? '🎉 YOU WON!' : '😔 GAME OVER'}
+                                </motion.span>
+                            ) : (
+                                <motion.span
+                                    key="status"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="text-yellow-400"
+                                >
+                                    {game.status.toUpperCase()}
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
 

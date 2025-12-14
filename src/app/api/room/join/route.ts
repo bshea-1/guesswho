@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         }
 
         const { roomId, playerName } = result.data;
-        const cleanName = sanitizeName(playerName);
+        const cleanName = sanitizeName(playerName || 'Player 2');
 
         const game = await gameStorage.getGame(roomId);
         if (!game) {

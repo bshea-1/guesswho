@@ -14,12 +14,12 @@ export function sanitizeName(name: string): string {
 }
 
 export const CreateRoomSchema = z.object({
-    hostName: NameSchema,
+    hostName: NameSchema.optional(),
     mode: z.enum(['regular', 'text']),
     visibility: z.enum(['public', 'unlisted', 'private']),
 });
 
 export const JoinRoomSchema = z.object({
     roomId: z.string().min(1),
-    playerName: NameSchema,
+    playerName: NameSchema.optional(),
 });

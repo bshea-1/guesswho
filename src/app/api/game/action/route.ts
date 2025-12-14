@@ -3,6 +3,8 @@ import { gameStorage } from '@/lib/storage';
 import { processAction } from '@/lib/game-logic';
 import { pusherServer } from '@/lib/pusher';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
