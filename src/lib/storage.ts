@@ -159,7 +159,7 @@ export const gameStorage = {
             let changed = false;
 
             for (const [roomId, game] of Object.entries(games)) {
-                const lastActivity = (game as any).lastActivity || game.createdAt;
+                const lastActivity = (game as any).lastActivity || game.createdAt; // eslint-disable-line @typescript-eslint/no-explicit-any
                 const age = now - lastActivity;
 
                 // Delete finished games after 5 minutes
