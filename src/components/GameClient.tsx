@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
-import { GameState } from '@/lib/types';
+import { GameState, Player, Turn } from '@/lib/types';
 import { Loader2, Copy, Check, Home, Crown } from 'lucide-react';
 import GameBoard from './GameBoard';
 import GameControls from './GameControls';
-import GameLog from './GameLog';
+// import GameLog from './GameLog'; // Removed unused import
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GameClient({ roomId }: { roomId: string }) {
@@ -59,7 +59,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
         };
     }, [roomId, playerId, router, setGame, setRoomId]);
 
-    const sendAction = async (type: string, payload: any) => {
+    const sendAction = async (type: string, payload: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         await fetch('/api/game/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -87,14 +87,23 @@ export default function GameClient({ roomId }: { roomId: string }) {
         );
     }
 
-    const host = game.players[game.hostId];
-    const activePlayers = Object.values(game.players).filter(p => p.role === 'player' || (p.role === 'host' && p.characterId)); // Host can play
-    const spectators = Object.values(game.players).filter(p => !activePlayers.find(ap => ap.id === p.id) && p.id !== game.hostId); // Everyone else (excluding host and active players)
+    // const host = game.players[game.hostId]; // Unused
 
-    // Correction: Spectators are everyone NOT playing. Host is separated.
-    // Let's rely on 'role' property if valid, or deduce it.
-    // Active players = anyone with role 'player' OR (role 'host' and game.matchStatus === 'playing'?)
-    // Actually, `activePlayers` logic above relies on characterId mostly.
+    const sortPlayers = (a: Player, b: Player) => {
+        if (a.id === game.hostId) return -1;
+        if (b.id === game.hostId) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+    };
+
+    const activePlayers = Object.values(game.players)
+        .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
+        .sort(sortPlayers);
+
+    const spectators = Object.values(game.players)
+        .filter(p => !activePlayers.find(ap => ap.id === p.id))
+        .sort(sortPlayers);
+
+    // ...
 
     // Derived state for current user
     const myPlayer = game.players[playerId || ''];
@@ -113,7 +122,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
             <div className="w-full md:w-1/4 border-r border-white/10 flex flex-col bg-slate-900/50">
                 <div className="p-4 border-b border-white/10">
                     <div className="flex items-center justify-between mb-2">
-                        <h2 className="font-bold text-xl text-yellow-400">Guess Who Party</h2>
+                        <h2 className="font-bold text-xl text-yellow-400">Guess Who</h2>
                         <button
                             onClick={() => router.push('/')}
                             className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
@@ -137,14 +146,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
                 {/* Participants List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                    {/* Host Section */}
-                    <div>
-                        <h3 className="text-xs font-bold text-yellow-500 uppercase tracking-wider mb-2">Host</h3>
-                        <div className="flex items-center gap-2 bg-yellow-900/20 border border-yellow-700/50 p-2 rounded-lg">
-                            <Crown size={16} className="text-yellow-400 fill-yellow-400" />
-                            <span className="font-medium text-yellow-200">{host?.name || 'Unknown'}</span>
-                        </div>
-                    </div>
+
 
                     {/* Active Match Section */}
                     <div>
@@ -177,6 +179,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                     className={`flex items-center justify-between p-2 rounded-lg transition text-sm ${iamHost ? 'cursor-pointer hover:bg-slate-800' : ''}`}
                                 >
                                     <div className="flex items-center gap-2">
+                                        {game.hostId === p.id && <Crown size={14} className="text-yellow-400 fill-yellow-400" />}
                                         <span className="text-slate-300">{p.name}</span>
                                     </div>
                                     {game.queue.includes(p.id) && (
@@ -310,7 +313,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                         className="text-yellow-400 flex items-center gap-2"
                                     >
                                         <span className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
-                                        OPPONENT'S TURN
+                                        OPPONENT&apos;S TURN
                                     </motion.span>
                             ) : game.matchStatus === 'finished' ? (
                                 <motion.span
@@ -340,6 +343,75 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         </button>
                     )}
                 </div>
+
+                {/* Question Display */}
+                {(() => {
+                    const history = [...game.history];
+                    const questions = history.filter(t => t.action === 'ask');
+
+                    const latestQ = questions[questions.length - 1];
+                    const previousQ = questions[questions.length - 2];
+
+                    const getAnswerFor = (qTurn: Turn) => {
+                        // Find the first answer AFTER this question's index
+                        const qIndex = history.indexOf(qTurn);
+                        if (qIndex === -1) return null;
+                        return history.slice(qIndex + 1).find(t => t.action === 'answer');
+                    };
+
+                    const latestA = latestQ ? getAnswerFor(latestQ) : null;
+                    const previousA = previousQ ? getAnswerFor(previousQ) : null;
+
+                    const renderQABlock = (q: Turn, a: Turn | undefined | null, isCurrent: boolean) => {
+                        if (!q) return null;
+                        const isMyQ = q.playerId === playerId;
+                        const askerName = isMyQ ? 'You' : (game.players[q.playerId]?.name || 'Opponent');
+
+                        return (
+                            <div className={`p-3 backdrop-blur-sm border-b ${isCurrent ? 'bg-blue-900/30 border-blue-500/30' : 'bg-slate-900/40 border-slate-700/30'} flex flex-col gap-1 items-center animate-slide-in`}>
+                                <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-bold opacity-70">
+                                    <span className={isCurrent ? "text-blue-400" : "text-slate-500"}>
+                                        {isCurrent ? "New Question" : "Last Question"}
+                                    </span>
+                                </div>
+
+                                <div className="text-white font-medium italic text-center">
+                                    &quot;{q.content}&quot;
+                                </div>
+
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">
+                                        {askerName} Asked
+                                    </span>
+                                    {a ? (
+                                        <>
+                                            <span className="text-slate-600">•</span>
+                                            <span className="text-[10px] text-green-400 uppercase tracking-wider font-bold">
+                                                {a.playerId === playerId ? 'You' : (game.players[a.playerId]?.name || 'They')} Answered: {a.content}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-slate-600">•</span>
+                                            <span className="text-[10px] text-yellow-500/50 uppercase tracking-wider italic">
+                                                Waiting for answer...
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    };
+
+                    if (!latestQ && !previousQ) return null;
+
+                    return (
+                        <div className="flex flex-col">
+                            {previousQ && renderQABlock(previousQ, previousA, false)}
+                            {latestQ && renderQABlock(latestQ, latestA, true)}
+                        </div>
+                    );
+                })()}
 
                 {/* Board Area */}
                 <div className="flex-1 overflow-y-auto p-4 bg-slate-950/50 relative">

@@ -32,7 +32,7 @@ export default function GameLog({ history, game, playerId }: GameLogProps) {
                     </span>
                 </div>
 
-                {history.map((turn, i) => {
+                {history.filter(t => t.action !== 'ask').map((turn, i) => {
                     const isSystem = turn.playerId === 'system';
                     const isMe = turn.playerId === playerId;
                     const playerName = getPlayerName(turn.playerId);
