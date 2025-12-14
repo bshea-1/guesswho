@@ -1,11 +1,16 @@
-import { GameState, Player, Character, Turn, ChatMessage } from './types';
+import { GameState, ChatMessage } from './types';
 import { CHARACTERS } from './characters';
 import { sanitizeName } from './validation';
+
+export function checkGuess(character: any, question: { category: string, value: any }): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!character) return false;
+    return character[question.category] === question.value;
+}
 
 export type GameActionEnvelope = {
     playerId: string;
     type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH';
-    payload?: any;
+    payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
 // Replaced by unified joinGame
@@ -266,21 +271,22 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         };
     }
 
-    if (state.matchStatus !== 'playing' && type !== 'TOGGLE_READY') {
-        // Allow some actions in lobby?
-        if (type === 'UPDATE_NAME') {
-            const newName = payload;
-            if (!newName || typeof newName !== 'string') throw new Error('Invalid name');
 
-            return {
-                ...state,
-                players: {
-                    ...state.players,
-                    [playerId]: { ...state.players[playerId], name: sanitizeName(newName) }
-                }
-            };
-        }
+    if (type === 'UPDATE_NAME') {
+        const newName = payload;
+        if (!newName || typeof newName !== 'string') throw new Error('Invalid name');
+
+        return {
+            ...state,
+            players: {
+                ...state.players,
+                [playerId]: { ...state.players[playerId], name: sanitizeName(newName) }
+            }
+        };
     }
+
+
+
 
     // Strict Gameplay check
     if (state.matchStatus !== 'playing') {
@@ -348,7 +354,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'WIN',
-                    content: `${state.players[playerId]?.name} correctly guessed ${guessedChar.name}!`,
+                    content: `${state.players[playerId]?.name} correctly guessed ${guessedChar.name} !`,
                     timestamp: Date.now()
                 }],
             };
@@ -360,7 +366,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'GAME_OVER',
-                    content: `${state.players[playerId]?.name} guessed ${guessedChar.name} incorrectly. It was ${opponentCharName}!`,
+                    content: `${state.players[playerId]?.name} guessed ${guessedChar.name} incorrectly. It was ${opponentCharName} !`,
                     timestamp: Date.now()
                 }],
             };

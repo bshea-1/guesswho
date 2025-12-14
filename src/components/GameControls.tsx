@@ -65,7 +65,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
     const myPlayer = playerId ? game.players[playerId] : null;
     const suggestion = (myPlayer && !guessMode) ? getBestQuestion(myPlayer.eliminatedIds) : null;
 
-    const sendAction = async (type: string, payload: any) => {
+    const sendAction = async (type: string, payload: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         await fetch('/api/game/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -80,7 +80,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
     };
 
     const startListening = () => {
-        // @ts-ignore
+        // @ts-expect-error - SpeechRecognition is not standard yet
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             alert('Voice input not supported in this browser');
@@ -92,7 +92,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
 
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
             const transcript = event.results[0][0].transcript;
             setInput(transcript);
         };
