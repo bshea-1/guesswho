@@ -10,7 +10,7 @@ export async function POST(req: Request) {
         const result = JoinRoomSchema.safeParse(body);
 
         if (!result.success) {
-            return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 });
+            return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 }); // eslint-disable-line @typescript-eslint/no-explicit-any
         }
 
         const { roomId, playerName, isSpectator } = result.data;
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
             } else {
                 newGame = joinGame(game, playerId, cleanName);
             }
-        } catch (e: any) {
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             // If room full, return specific error
             return NextResponse.json({ error: e.message }, { status: 400 });
         }

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         const result = CreateRoomSchema.safeParse(body);
 
         if (!result.success) {
-            return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 });
+            return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 }); // eslint-disable-line @typescript-eslint/no-explicit-any
         }
 
         const { hostName, visibility } = result.data;

@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         let newState;
         try {
             newState = processAction(game, { playerId, type, payload });
-        } catch (e: any) {
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             return NextResponse.json({ error: e.message }, { status: 400 });
         }
 
