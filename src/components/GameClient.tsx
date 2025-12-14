@@ -91,12 +91,60 @@ export default function GameClient({ roomId }: { roomId: string }) {
                             {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
                         </button>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">Spectators: {game.spectators}</div>
                 </div>
+
+                {/* Player List */}
+                <div className="p-4 border-b border-white/10">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Players</h3>
+                    <div className="space-y-2">
+                        {Object.values(game.players).map(player => {
+                            const isCurrentPlayer = player.id === playerId;
+                            const isPlayerTurn = game.turnPlayerId === player.id;
+
+                            return (
+                                <div
+                                    key={player.id}
+                                    className={`flex items-center justify-between p-2 rounded-lg transition ${isPlayerTurn && game.status === 'playing'
+                                            ? 'bg-green-900/30 border border-green-600/50'
+                                            : 'bg-slate-800/50'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {isPlayerTurn && game.status === 'playing' && (
+                                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                        )}
+                                        <span className={`font-medium ${isCurrentPlayer ? 'text-blue-400' : 'text-white'}`}>
+                                            {player.name}
+                                            {isCurrentPlayer && <span className="text-xs opacity-60 ml-1">(you)</span>}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        {game.status === 'lobby' ? (
+                                            player.isReady ? (
+                                                <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full font-bold">READY</span>
+                                            ) : (
+                                                <span className="text-xs bg-slate-600 text-slate-300 px-2 py-0.5 rounded-full">Not Ready</span>
+                                            )
+                                        ) : game.status === 'playing' && isPlayerTurn ? (
+                                            <span className="text-xs text-green-400 font-bold">TURN</span>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {game.spectators > 0 && (
+                        <div className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                            <span>👁️ {game.spectators} spectator{game.spectators > 1 ? 's' : ''}</span>
+                        </div>
+                    )}
+                </div>
+
                 <div className="flex-1 overflow-y-auto">
                     <GameLog history={game.history} game={game} playerId={playerId} />
                 </div>
             </div>
+
 
             {/* Main Area: Board and Controls */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
