@@ -13,6 +13,13 @@ export type Player = {
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
+export type ChatMessage = {
+    id: string;
+    playerId: string;
+    text: string;
+    timestamp: number;
+};
+
 export type Turn = {
     playerId: string;
     action: 'ask' | 'guess' | 'answer' | 'join' | 'WIN' | 'GAME_OVER';
@@ -23,14 +30,15 @@ export type Turn = {
 export type GameState = {
     roomId: string; // Short code
     hostId: string;
-    players: Record<string, Player>; // Max 2 players
-    spectators: number; // Count of spectators
-    status: GameStatus;
+    players: Record<string, Player>; // All participants (Host, Players, Spectators)
+    queue: string[]; // IDs of players waiting to play
+    chat: ChatMessage[];
+    status: GameStatus; // Party Status
+    matchStatus: 'lobby' | 'playing' | 'finished'; // Current match status
     turnPlayerId: string | null; // ID of the player whose turn it is
     winnerId: string | null;
     history: Turn[];
     settings: {
-        mode: 'regular' | 'text';
         spectatorView: 'log' | 'boards';
         visibility: 'public' | 'unlisted' | 'private';
     };
@@ -39,7 +47,6 @@ export type GameState = {
 
 export type CreateRoomParams = {
     hostName: string;
-    mode: GameState['settings']['mode'];
     visibility: GameState['settings']['visibility'];
 };
 

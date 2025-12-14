@@ -127,7 +127,8 @@ export default function HomeClient() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     roomId: roomCode,
-                    playerName: undefined // Will default
+                    playerName: undefined, // Will default
+                    isSpectator // boolean
                 }),
             });
 

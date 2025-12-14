@@ -16,7 +16,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 });
         }
 
-        const { hostName, mode, visibility } = result.data;
+        const { hostName, visibility } = result.data;
         // Default name if empty string provided
         const cleanName = sanitizeName(hostName || 'Host');
 
@@ -36,7 +36,6 @@ export async function POST(req: Request) {
         const hostId = crypto.randomUUID();
 
         const initialGame = createInitialGameState(roomId, cleanName, hostId, {
-            mode,
             visibility,
             spectatorView: 'log', // Default
         });

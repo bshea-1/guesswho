@@ -13,8 +13,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 });
         }
 
-        const { roomId, playerName } = result.data;
-        const cleanName = sanitizeName(playerName || 'Player 2');
+        const { roomId, playerName, isSpectator } = result.data;
+        const cleanName = sanitizeName(playerName || (isSpectator ? 'Spectator' : 'Player 2'));
 
         const game = await gameStorage.getGame(roomId);
         if (!game) {
@@ -24,7 +24,19 @@ export async function POST(req: Request) {
         const playerId = crypto.randomUUID();
         let newGame;
         try {
-            newGame = joinGame(game, playerId, cleanName);
+            if (isSpectator) {
+                // If spectator, just increment count, do NOT add to players
+                // We typically verify if we can add a spectator (usually unlimited, but good to have a path)
+                // Use a different helper if we were tracking spectator IDs, but for now we just increment count
+                // AND we do NOT add them to the players list.
+                // However, we must return a playerId so the client works (even if this ID isn't in game.players)
+
+                // We should import addSpectator
+                const { addSpectator } = await import('@/lib/game-logic');
+                newGame = addSpectator(game);
+            } else {
+                newGame = joinGame(game, playerId, cleanName);
+            }
         } catch (e: any) {
             // If room full, return specific error
             return NextResponse.json({ error: e.message }, { status: 400 });
