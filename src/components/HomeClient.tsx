@@ -11,12 +11,13 @@ export default function HomeClient() {
     const { username, setUsername, playerId, setPlayerId, roomId, setRoomId } = useGameStore();
     const [localName, setLocalName] = useState(username);
     const [mode, setMode] = useState<'create' | 'join' | 'spectate' | null>(null);
-    const [gameMode, setGameMode] = useState<'regular' | 'text'>('regular');
+    // Removed gameMode state
     const [roomCode, setRoomCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showBanner, setShowBanner] = useState(false);
     const [namingMode, setNamingMode] = useState(false); // New state for name entry step
+    const [loadingMessage, setLoadingMessage] = useState('');
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
@@ -59,6 +60,10 @@ export default function HomeClient() {
         if (!localName.trim()) { setError('Name is required'); return; }
         setLoading(true);
         setError('');
+        setLoadingMessage('Joining Party...');
+
+        // Random delay 1s - 1.5s
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 1000));
 
         try {
             setUsername(localName);
@@ -79,12 +84,17 @@ export default function HomeClient() {
         } catch (e: any) {
             setError(e.message);
             setLoading(false);
+            setLoadingMessage('');
         }
     };
 
     const handleCreate = async () => {
         setLoading(true);
         setError('');
+        setLoadingMessage('Creating Party...');
+
+        // Random delay 1s - 2.5s
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1500 + 1000));
 
         try {
             // Create with default name first
@@ -93,8 +103,8 @@ export default function HomeClient() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     hostName: undefined, // Will default to 'Host'
-                    mode: gameMode,
-                    visibility: gameMode === 'text' ? 'public' : 'unlisted'
+                    mode: undefined, // Mode removed
+                    visibility: 'unlisted' // Default
                 }),
             });
 
@@ -109,9 +119,11 @@ export default function HomeClient() {
             setMode(null);
             setNamingMode(true);
             setLoading(false);
+            setLoadingMessage('');
         } catch (e: any) {
             setError(e.message);
             setLoading(false);
+            setLoadingMessage('');
         }
     };
 
@@ -157,34 +169,43 @@ export default function HomeClient() {
                     animate={{ opacity: 1, scale: 1 }}
                     className="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl space-y-6"
                 >
-                    <div className="text-center">
-                        <div className="inline-block p-3 rounded-full bg-green-500/20 text-green-400 mb-4">
-                            <Check size={32} />
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                            <Loader2 className="animate-spin w-12 h-12 text-blue-500" />
+                            <p className="text-xl font-medium text-blue-300">{loadingMessage}</p>
                         </div>
-                        <h2 className="text-2xl font-bold text-white">You're in!</h2>
-                        <p className="text-slate-400">Room: <span className="font-mono text-white">{roomId}</span></p>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="text-center">
+                                <div className="inline-block p-3 rounded-full bg-green-500/20 text-green-400 mb-4">
+                                    <Check size={32} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-white">You're in!</h2>
+                                <p className="text-slate-400">Room: <span className="font-mono text-white">{roomId}</span></p>
+                            </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1">What should we call you?</label>
-                        <input
-                            value={localName}
-                            onChange={(e) => setLocalName(e.target.value)}
-                            placeholder="Enter display name..."
-                            autoFocus
-                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
-                            onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
-                        />
-                    </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-1">What should we call you?</label>
+                                <input
+                                    value={localName}
+                                    onChange={(e) => setLocalName(e.target.value)}
+                                    placeholder="Enter display name..."
+                                    autoFocus
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
+                                />
+                            </div>
 
-                    <button onClick={handleNameSubmit} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">
-                        {loading ? <Loader2 className="animate-spin" /> : 'Enter Game'}
-                    </button>
+                            <button onClick={handleNameSubmit} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                                Enter Game
+                            </button>
 
-                    {error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg text-center">
-                            {error}
-                        </div>
+                            {error && (
+                                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg text-center">
+                                    {error}
+                                </div>
+                            )}
+                        </>
                     )}
                 </motion.div>
             </div>
@@ -205,9 +226,9 @@ export default function HomeClient() {
                     <p className="mt-2 text-slate-400">Multiplayer Edition</p>
                 </div>
 
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
+                <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl min-h-[300px] flex flex-col justify-center">
                     {/* Current Game Banner - Only show if state is true (after delay) */}
-                    {showBanner && (
+                    {showBanner && !loading && (
                         <div className="mb-6 p-4 bg-green-900/30 border border-green-600/50 rounded-xl">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -237,50 +258,29 @@ export default function HomeClient() {
                         {/* Name input removed from landing page */}
 
                         {!mode && (
-                            <div className="grid grid-cols-1 gap-3 pt-4">
-                                <button onClick={() => setMode('create')} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition">
-                                    <Plus size={20} /> Create Room
-                                </button>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => setMode('join')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
-                                        <Users size={20} /> Join
-                                    </button>
-                                    <button onClick={() => router.push('/matches')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
-                                        <Eye size={20} /> Watch
-                                    </button>
+                            loading ? (
+                                <div className="flex flex-col items-center justify-center py-10">
+                                    <Loader2 className="animate-spin w-12 h-12 text-blue-500 mb-4" />
+                                    <p className="text-slate-400 text-lg animate-pulse">{loadingMessage}</p>
                                 </div>
-                            </div>
-                        )}
-
-                        {mode === 'create' && (
-                            <div className="space-y-4 pt-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-400 mb-2">Game Mode</label>
-                                    <div className="grid grid-cols-2 gap-2" id="game-mode-selector">
-                                        <button
-                                            type="button"
-                                            onClick={() => setGameMode('regular')}
-                                            className={`p-3 rounded-lg font-bold text-sm transition border-2 ${gameMode === 'regular' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
-                                        >
-                                            🎭 Regular
-                                            <span className="block text-xs font-normal opacity-70">Private game</span>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-3 pt-4">
+                                    <button onClick={handleCreate} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition">
+                                        <Plus size={20} /> Create Room
+                                    </button>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button onClick={() => setMode('join')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
+                                            <Users size={20} /> Join
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setGameMode('text')}
-                                            className={`p-3 rounded-lg font-bold text-sm transition border-2 ${gameMode === 'text' ? 'bg-purple-600 border-purple-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
-                                        >
-                                            💬 Text Mode
-                                            <span className="block text-xs font-normal opacity-70">Public match</span>
+                                        <button onClick={() => router.push('/matches')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
+                                            <Eye size={20} /> Watch
                                         </button>
                                     </div>
                                 </div>
-                                <button onClick={handleCreate} disabled={loading} className="w-full bg-green-600 hover:bg-green-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">
-                                    {loading ? <Loader2 className="animate-spin" /> : 'Start Game'}
-                                </button>
-                                <button onClick={() => setMode(null)} className="w-full text-slate-500 text-sm hover:text-white">Cancel</button>
-                            </div>
+                            )
                         )}
+
+                        {/* Mode 'create' block Removed entirely */}
 
                         {(mode === 'join' || mode === 'spectate') && (
                             <div className="space-y-4 pt-4">
