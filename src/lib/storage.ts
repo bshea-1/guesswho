@@ -111,6 +111,7 @@ export const gameStorage = {
                 .select('state')
                 .eq('visibility', 'public')
                 .neq('status', 'finished')
+                .neq('status', 'lobby')
                 .order('created_at', { ascending: false })
                 .limit(50);
 
@@ -119,7 +120,7 @@ export const gameStorage = {
         } else {
             const games = await readLocalData();
             return Object.values(games)
-                .filter(g => g.settings.visibility === 'public' && g.status !== 'finished');
+                .filter(g => g.settings.visibility === 'public' && g.status !== 'finished' && g.status !== 'lobby');
         }
     },
 

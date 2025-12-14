@@ -18,6 +18,7 @@ export type ChatMessage = {
     playerId: string;
     text: string;
     timestamp: number;
+    scope: 'party' | 'game';
 };
 
 export type Turn = {

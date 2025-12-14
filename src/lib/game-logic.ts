@@ -155,7 +155,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
             playerId,
             text: text.trim(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            scope: payload?.scope || 'party'
         };
 
         // Keep last 50 messages

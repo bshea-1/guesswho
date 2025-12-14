@@ -85,12 +85,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
         });
     };
 
-    const handleChatSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!chatInput.trim()) return;
-        sendAction('CHAT', { text: chatInput });
-        setChatInput('');
-    };
+
 
     if (loading || !game) {
         return (
@@ -123,10 +118,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
     const iamHost = playerId === game.hostId;
     const iamActive = myPlayer?.role === 'player' || (iamHost && !!myPlayer?.characterId);
 
-    // Chat visibility strategy:
-    // "Spectator messages must NOT be visible to the active players"
-    // So: Visible only if YOU are NOT an Active Player.
-    const showChat = !iamActive;
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-yellow-900/20 via-slate-950 to-red-900/20 text-white flex flex-col md:flex-row overflow-hidden">
@@ -245,35 +237,63 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
                 {/* Chat Widget */}
                 <div className="h-1/3 border-t border-white/10 flex flex-col bg-black/20">
-                    <div className="p-2 bg-slate-900/80 text-xs font-bold text-slate-400 flex justify-between">
-                        <span>PARTY CHAT</span>
-                        {!showChat && <span className="text-red-400">HIDDEN (Playing)</span>}
+                    <div className="flex border-b border-white/5 bg-slate-900/80">
+                        <div
+                            className={`flex-1 p-2 text-center text-xs font-bold cursor-default transition ${!iamActive ? 'text-yellow-400 bg-white/5' : 'text-slate-600 opacity-50'}`}
+                        >
+                            PARTY CHAT
+                        </div>
+                        <div
+                            className={`flex-1 p-2 text-center text-xs font-bold cursor-default transition ${iamActive ? 'text-green-400 bg-white/5' : 'text-slate-600 opacity-50'}`}
+                        >
+                            GAME CHAT
+                        </div>
                     </div>
 
-                    {showChat ? (
-                        <>
-                            <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                                {game.chat?.map((msg) => (
-                                    <div key={msg.id} className="text-sm">
-                                        <span className="font-bold text-slate-400 text-xs mr-2">{game.players[msg.playerId]?.name}:</span>
-                                        <span className="text-slate-200">{msg.text}</span>
-                                    </div>
-                                ))}
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                        {game.chat
+                            ?.filter(msg => {
+                                const scope = msg.scope || 'party'; // Legacy support
+                                if (iamActive) return scope === 'game';
+                                return scope === 'party';
+                            })
+                            .map((msg) => (
+                                <div key={msg.id} className="text-sm">
+                                    <span className={`font-bold text-xs mr-2 ${msg.scope === 'game' ? 'text-green-400' : 'text-slate-400'}`}>{game.players[msg.playerId]?.name}:</span>
+                                    <span className="text-slate-200">{msg.text}</span>
+                                </div>
+                            ))}
+                        {/* Empty states */}
+                        {game.chat?.filter(m => (m.scope || 'party') === (iamActive ? 'game' : 'party')).length === 0 && (
+                            <div className="text-slate-600 text-xs italic text-center mt-4">
+                                {iamActive ? "Chat with your opponent here..." : "Chat with other spectators..."}
                             </div>
-                            <form onSubmit={handleChatSubmit} className="p-2 border-t border-white/5 flex gap-2">
-                                <input
-                                    className="flex-1 bg-slate-800 text-white text-sm rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
-                                    placeholder="Say something..."
-                                    value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                />
-                            </form>
-                        </>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center p-4 text-center">
-                            <p className="text-slate-500 text-xs">Chat hidden to prevent spoilers while playing.</p>
-                        </div>
-                    )}
+                        )}
+
+                        {/* Info Message for why the other tab is disabled */}
+                        {iamActive && (
+                            <div className="mt-4 p-2 bg-yellow-900/10 border border-yellow-500/10 rounded text-center">
+                                <p className="text-[10px] text-yellow-500/50">Party chat hidden to prevent spoilers</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!chatInput.trim()) return;
+                        sendAction('CHAT', {
+                            text: chatInput,
+                            scope: iamActive ? 'game' : 'party'
+                        });
+                        setChatInput('');
+                    }} className="p-2 border-t border-white/5 flex gap-2">
+                        <input
+                            className="flex-1 bg-slate-800 text-white text-sm rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder={iamActive ? "Message opponent..." : "Message party..."}
+                            value={chatInput}
+                            onChange={e => setChatInput(e.target.value)}
+                        />
+                    </form>
                 </div>
             </div>
 
