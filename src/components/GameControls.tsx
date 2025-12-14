@@ -130,59 +130,59 @@ export default function GameControls({ game, playerId }: { game: GameState, play
     }
 
     return (
-        <div className="flex flex-col gap-3 max-w-4xl mx-auto">
+        <div className="flex flex-col gap-2 sm:gap-3 max-w-4xl mx-auto">
             {/* PRIORITIZE ANSWERING: If someone asked me a question, I must answer it first, even if it's my turn now. */}
             {waitingForAnswer ? (
                 <div className="flex flex-col items-center gap-3">
                     <p className="text-slate-400 text-sm">Your opponent asked a question. Answer:</p>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap justify-center gap-2 sm:gap-3 w-full">
                         <button
                             onClick={() => sendAction('ANSWER', 'Yes')}
-                            className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold transition"
+                            className="flex-1 min-w-[100px] flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-xl font-bold transition text-sm sm:text-base"
                         >
-                            <CheckCircle size={20} /> YES
+                            <CheckCircle size={18} /> YES
                         </button>
                         <button
                             onClick={() => sendAction('ANSWER', 'No')}
-                            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-bold transition"
+                            className="flex-1 min-w-[100px] flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-4 py-3 rounded-xl font-bold transition text-sm sm:text-base"
                         >
-                            <XCircle size={20} /> NO
+                            <XCircle size={18} /> NO
                         </button>
                         <button
                             onClick={() => sendAction('ANSWER', 'Not sure')}
-                            className="flex items-center gap-2 bg-slate-600 hover:bg-slate-500 text-white px-4 py-3 rounded-xl font-bold transition"
+                            className="flex-1 min-w-[100px] flex items-center justify-center gap-2 bg-slate-600 hover:bg-slate-500 text-white px-3 py-3 rounded-xl font-bold transition text-xs sm:text-sm"
                         >
-                            <HelpCircle size={20} /> NOT SURE
+                            <HelpCircle size={18} /> NOT SURE
                         </button>
                     </div>
                 </div>
             ) : !isMyTurn ? (
                 /* NOT MY TURN and No Question to Answer -> Waiting */
                 <div className="flex flex-col items-center gap-3">
-                    <div className="text-slate-500 py-2 flex items-center gap-2">
+                    <div className="text-slate-500 py-2 flex items-center gap-2 text-sm sm:text-base">
                         <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
                         Waiting for opponent...
                     </div>
                 </div>
             ) : (
                 /* MY TURN - Show ask/guess controls */
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2 sm:gap-3">
                     <div className="flex gap-2">
                         <button
                             onClick={() => setGuessMode(false)}
-                            className={`flex-1 py-3 rounded-lg font-bold text-sm transition ${!guessMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                            className={`flex-1 py-3 rounded-lg font-bold text-xs sm:text-sm transition ${!guessMode ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                         >
                             💬 ASK QUESTION
                         </button>
                         <button
                             onClick={() => setGuessMode(true)}
-                            className={`flex-1 py-3 rounded-lg font-bold text-sm transition ${guessMode ? 'bg-orange-600 text-white animate-pulse' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                            className={`flex-1 py-3 rounded-lg font-bold text-xs sm:text-sm transition ${guessMode ? 'bg-orange-600 text-white animate-pulse' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                         >
                             🎯 GUESS WHO
                         </button>
                     </div>
 
-                    <div className="relative overflow-hidden min-h-[120px]">
+                    <div className="relative overflow-visible sm:overflow-hidden min-h-[100px] sm:min-h-[120px]">
                         <AnimatePresence mode="wait">
                             {!guessMode ? (
                                 /* Ask question mode */
@@ -197,8 +197,8 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                                     <input
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
-                                        placeholder="Ask a question (e.g. 'Do they have glasses?')..."
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-4 pr-24 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="Ask a question..."
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 sm:py-4 pr-24 text-white text-sm sm:text-base focus:ring-2 focus:ring-blue-500 outline-none"
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && input.trim()) {
                                                 sendAction('ASK', input);
@@ -207,14 +207,14 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                                     />
                                     <div className="absolute right-2 top-2 bottom-2 flex gap-1">
                                         <button onClick={startListening} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
-                                            <Mic size={20} />
+                                            <Mic size={18} />
                                         </button>
                                         <button
                                             onClick={() => sendAction('ASK', input)}
                                             disabled={!input.trim()}
-                                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white px-4 rounded-lg font-bold transition flex items-center"
+                                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white px-3 sm:px-4 rounded-lg font-bold transition flex items-center"
                                         >
-                                            <Send size={18} />
+                                            <Send size={16} />
                                         </button>
                                     </div>
                                 </motion.div>
@@ -226,37 +226,37 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
                                     transition={{ duration: 0.2 }}
-                                    className="bg-orange-900/30 border border-orange-600/50 rounded-xl p-4 text-center h-[60px] flex flex-col justify-center items-center"
+                                    className="bg-orange-900/30 border border-orange-600/50 rounded-xl p-3 sm:p-4 text-center h-[60px] flex flex-col justify-center items-center"
                                 >
-                                    <p className="text-orange-400 font-bold">Click on a character above to make your guess!</p>
-                                    <p className="text-orange-400/70 text-sm mt-1">Choose wisely - wrong guesses lose the game!</p>
+                                    <p className="text-orange-400 font-bold text-sm sm:text-base">Click on a character above to make your guess!</p>
+                                    <p className="text-orange-400/70 text-xs sm:text-sm mt-1">Choose wisely - wrong guesses lose the game!</p>
                                 </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
 
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center sm:mt-0 -mt-2">
                         {suggestion && !guessMode && (
                             <div
-                                className="text-xs text-blue-400 flex items-center gap-1 cursor-pointer hover:text-blue-300"
+                                className="text-[10px] sm:text-xs text-blue-400 flex items-center gap-1 cursor-pointer hover:text-blue-300 max-w-[60%] truncate"
                                 onClick={() => setInput(suggestion)}
                             >
                                 <AlertCircle size={12} />
-                                Suggested: {suggestion}
+                                <span className="truncate">Suggested: {suggestion}</span>
                             </div>
                         )}
                         <div className="flex gap-2 ml-auto">
                             <button
                                 onClick={() => sendAction('END_TURN', null)}
-                                className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold px-4 py-2 rounded-lg transition"
+                                className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition"
                             >
                                 END TURN
                             </button>
                             <button
                                 onClick={() => sendAction('FORFEIT', null)}
-                                className="flex items-center gap-1 text-red-400 hover:text-red-300 font-bold px-3 py-2 rounded-lg hover:bg-red-900/30 transition"
+                                className="flex items-center gap-1 text-red-400 hover:text-red-300 font-bold px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm rounded-lg hover:bg-red-900/30 transition"
                             >
-                                <Flag size={16} /> FORFEIT
+                                <Flag size={14} /> FORFEIT
                             </button>
                         </div>
                     </div>
@@ -265,4 +265,3 @@ export default function GameControls({ game, playerId }: { game: GameState, play
         </div>
     );
 }
-

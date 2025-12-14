@@ -21,7 +21,10 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-
+/* Safe Area Utility */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
 /* Card flip animation */
 @keyframes cardFlip {
