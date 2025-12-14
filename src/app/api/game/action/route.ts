@@ -18,6 +18,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // Special handling for END_PARTY - delete the game entirely
+        if (type === 'END_PARTY') {
+            // Only host can end the party
+            if (game.hostId !== playerId) {
+                return NextResponse.json({ error: 'Only the host can end the party' }, { status: 403 });
+            }
+
+            // Delete the game from storage
+            await gameStorage.deleteGame(roomId);
+
+            // Broadcast party-ended event to all clients
+            await pusherServer.trigger(`room-${roomId}`, 'party-ended', { roomId });
+
+            return NextResponse.json({ success: true, ended: true });
+        }
+
         let newState;
         try {
             newState = processAction(game, { playerId, type, payload });
@@ -36,3 +52,4 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
 import { GameState, Player, Turn } from '@/lib/types';
-import { Loader2, Copy, Check, Home, Crown, UserX } from 'lucide-react';
+import { Loader2, Copy, Check, Home, Crown, UserX, LogOut } from 'lucide-react';
 import GameBoard from '@/components/GameBoard';
 import GameControls from '@/components/GameControls';
 // import GameLog from './GameLog'; // Removed unused import
@@ -58,6 +58,13 @@ export default function GameClient({ roomId }: { roomId: string }) {
         channel.bind('game-update', (newGameState: GameState) => {
             console.log('Received game update', newGameState);
             setGame(newGameState);
+        });
+
+        // Listen for party ended event
+        channel.bind('party-ended', () => {
+            console.log('Party ended by host');
+            clearGame();
+            router.push('/');
         });
 
         return () => {
@@ -128,13 +135,28 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 <div className="p-4 border-b border-white/10">
                     <div className="flex items-center justify-between mb-2">
                         <h2 className="font-bold text-xl text-yellow-400">Guess Who</h2>
-                        <button
-                            onClick={handleLeaveParty}
-                            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-                            title="Leave Party"
-                        >
-                            <Home size={18} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            {iamHost && (
+                                <button
+                                    onClick={() => {
+                                        if (confirm('End this party? Everyone will be disconnected.')) {
+                                            sendAction('END_PARTY', null);
+                                        }
+                                    }}
+                                    className="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-900/30 transition"
+                                    title="End Party"
+                                >
+                                    <LogOut size={18} />
+                                </button>
+                            )}
+                            <button
+                                onClick={handleLeaveParty}
+                                className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                                title="Leave Party"
+                            >
+                                <Home size={18} />
+                            </button>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                         <span className="text-slate-400">Room:</span>
