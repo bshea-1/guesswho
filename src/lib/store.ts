@@ -1,0 +1,34 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { GameState } from './types';
+
+interface ClientStore {
+    username: string;
+    setUsername: (name: string) => void;
+    playerId: string | null;
+    setPlayerId: (id: string | null) => void;
+    roomId: string | null;
+    setRoomId: (id: string | null) => void;
+    // Local cache of game state for optimistic updates
+    game: GameState | null;
+    setGame: (game: GameState) => void;
+}
+
+export const useGameStore = create<ClientStore>()(
+    persist(
+        (set) => ({
+            username: '',
+            setUsername: (name) => set({ username: name }),
+            playerId: null,
+            setPlayerId: (id) => set({ playerId: id }),
+            roomId: null,
+            setRoomId: (id) => set({ roomId: id }),
+            game: null,
+            setGame: (game) => set({ game }),
+        }),
+        {
+            name: 'guesswho-storage',
+            partialize: (state) => ({ username: state.username, playerId: state.playerId, roomId: state.roomId }),
+        }
+    )
+);
