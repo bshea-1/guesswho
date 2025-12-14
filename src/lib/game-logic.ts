@@ -62,6 +62,8 @@ function startMatchLogic(state: GameState, p1Id: string, p2Id: string): GameStat
         turnPlayerId,
         winnerId: null,
         history: [{ playerId: 'system', action: 'join', content: 'Match Started', timestamp: Date.now() }],
+        // Keep party chat, but clear game chat
+        chat: state.chat.filter(m => m.scope !== 'game'),
     };
 }
 

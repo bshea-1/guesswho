@@ -11,6 +11,114 @@ import GameControls from '@/components/GameControls';
 // import GameLog from './GameLog'; // Removed unused import
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Helper Components for Board Views
+function ActivePlayerView({ game, playerId, activePlayers }: { game: GameState, playerId: string, activePlayers: Player[] }) {
+    const [viewMode, setViewMode] = useState<'my_board' | 'opponent_board'>('my_board');
+
+    // Identify opponent
+    const opponent = activePlayers.find(p => p.id !== playerId);
+
+    if (!opponent) return <div className="text-center text-slate-500 mt-10">Waiting for opponent...</div>;
+
+    const targetPlayerId = viewMode === 'my_board' ? playerId : opponent.id;
+
+    return (
+        <div className="flex flex-col h-full">
+            {/* View Toggle */}
+            <div className="flex justify-center mb-4">
+                <div className="bg-slate-900 p-1 rounded-lg flex border border-white/10">
+                    <button
+                        onClick={() => setViewMode('my_board')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${viewMode === 'my_board'
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        My Board
+                    </button>
+                    <button
+                        onClick={() => setViewMode('opponent_board')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${viewMode === 'opponent_board'
+                            ? 'bg-red-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        Opponent&apos;s Board
+                    </button>
+                </div>
+            </div>
+
+            {/* Board Title to confirm whose view it is */}
+            <div className={`text-center mb-2 font-bold text-sm uppercase tracking-wider ${viewMode === 'my_board' ? 'text-blue-400' : 'text-red-400'}`}>
+                {viewMode === 'my_board' ? "Your Board" : `${opponent.name}'s Board`}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+                <GameBoard
+                    game={game}
+                    targetPlayerId={targetPlayerId}
+                    viewerId={playerId}
+                />
+            </div>
+        </div>
+    );
+}
+
+function SpectatorView({ game, activePlayers, viewerId }: { game: GameState, activePlayers: Player[], viewerId: string }) {
+    if (activePlayers.length < 2) return <div className="text-center text-slate-500 mt-10">Waiting for players...</div>;
+
+    const [player1, player2] = activePlayers;
+    const [selectedPlayerId, setSelectedPlayerId] = useState<string>(player1.id);
+
+    // Ensure selected player is still valid (e.g. if players change)
+    useEffect(() => {
+        if (!activePlayers.find(p => p.id === selectedPlayerId)) {
+            setSelectedPlayerId(activePlayers[0]?.id);
+        }
+    }, [activePlayers, selectedPlayerId]);
+
+    const targetPlayer = activePlayers.find(p => p.id === selectedPlayerId) || player1;
+
+    return (
+        <div className="flex flex-col h-full">
+            {/* View Toggle */}
+            <div className="flex justify-center mb-4">
+                <div className="bg-slate-900 p-1 rounded-lg flex border border-white/10 overflow-hidden">
+                    {activePlayers.map(p => (
+                        <button
+                            key={p.id}
+                            onClick={() => setSelectedPlayerId(p.id)}
+                            className={`px-4 py-2 text-sm font-bold transition-all flex items-center gap-2 ${selectedPlayerId === p.id
+                                ? 'bg-slate-700 text-white shadow-lg'
+                                : 'text-slate-500 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            {/* Turn Indicator Dot */}
+                            {game.turnPlayerId === p.id && (
+                                <span className={`w-2 h-2 rounded-full animate-pulse ${p.id === player1.id ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                            )}
+                            {p.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Board Title */}
+            <div className={`text-center mb-2 font-bold text-sm uppercase tracking-wider ${targetPlayer.id === player1.id ? 'text-green-400' : 'text-yellow-400'}`}>
+                {targetPlayer.name}&apos;s Board
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-slate-900/30 rounded-xl border border-white/5 p-2">
+                <GameBoard
+                    game={game}
+                    targetPlayerId={targetPlayer.id}
+                    viewerId={viewerId}
+                />
+            </div>
+        </div>
+    );
+}
+
 export default function GameClient({ roomId }: { roomId: string }) {
     const router = useRouter();
     const { playerId, game, setGame, setRoomId, clearGame } = useGameStore();
@@ -489,7 +597,21 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
                     {/* Show board only if playing or finished */}
                     {(game.matchStatus === 'playing' || game.matchStatus === 'finished') && (
-                        <GameBoard game={game} playerId={playerId} />
+                        <>
+                            {iamActive ? (
+                                <ActivePlayerView
+                                    game={game}
+                                    playerId={playerId!}
+                                    activePlayers={activePlayers}
+                                />
+                            ) : (
+                                <SpectatorView
+                                    game={game}
+                                    activePlayers={activePlayers}
+                                    viewerId={playerId!} // Pass viewerId for role checks
+                                />
+                            )}
+                        </>
                     )}
                 </div>
 

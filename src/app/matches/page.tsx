@@ -146,6 +146,20 @@ export default function MatchesPage() {
                             </button>
 
                             <button
+                                onClick={() => {
+                                    // Anonymous watch logic
+                                    setPlayerId(joinedPlayerId);
+                                    setRoomId(joinedRoomId);
+                                    setUsername('Spectator');
+                                    router.push(`/game/${joinedRoomId}`);
+                                }}
+                                disabled={loading}
+                                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 p-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                            >
+                                <Tv size={20} /> Watch Anonymously
+                            </button>
+
+                            <button
                                 onClick={() => { setNamingMode(false); setJoinedRoomId(null); setJoinedPlayerId(null); }}
                                 className="w-full text-slate-500 text-sm hover:text-white"
                             >

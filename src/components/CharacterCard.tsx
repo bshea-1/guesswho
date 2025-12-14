@@ -45,9 +45,6 @@ const CharacterCard = memo(function CharacterCard({
                 className="object-cover"
                 sizes="(max-width: 768px) 25vw, 12.5vw"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1 pt-4">
-                <p className="text-center font-bold text-[10px] sm:text-xs text-shadow truncate px-0.5">{char.name}</p>
-            </div>
 
             {isEliminated && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">

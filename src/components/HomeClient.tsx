@@ -17,6 +17,7 @@ export default function HomeClient() {
     const [error, setError] = useState('');
     const [showBanner, setShowBanner] = useState(false);
     const [namingMode, setNamingMode] = useState(false); // New state for name entry step
+    const [isSpectatorMode, setIsSpectatorMode] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
 
     // Check if there's an active game
@@ -117,6 +118,7 @@ export default function HomeClient() {
             // Now prompt for name
             setMode(null);
             setNamingMode(true);
+            setIsSpectatorMode(false);
             setLoading(false);
             setLoadingMessage('');
         } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -151,6 +153,7 @@ export default function HomeClient() {
             // Now prompt for name
             setMode(null);
             setNamingMode(true);
+            setIsSpectatorMode(isSpectator);
             setLoading(false);
         } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(e.message);
@@ -224,6 +227,21 @@ export default function HomeClient() {
                             <button onClick={handleNameSubmit} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">
                                 Enter Game
                             </button>
+
+                            {isSpectatorMode && (
+                                <button
+                                    onClick={() => {
+                                        // Anonymous watch logic
+                                        // We have already set playerId and roomId in executeJoin
+                                        setUsername('Spectator');
+                                        router.push(`/game/${roomId}`);
+                                    }}
+                                    disabled={loading}
+                                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 p-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                                >
+                                    <Tv size={20} /> Watch Anonymously
+                                </button>
+                            )}
 
                             {error && (
                                 <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg text-center">
