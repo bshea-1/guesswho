@@ -7,6 +7,10 @@ const IS_SUPABASE_CONFIGURED = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!proce
 const LOCAL_DATA_DIR = path.join(process.cwd(), 'data');
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'games.json');
 
+// Cleanup thresholds
+const FINISHED_GAME_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const INACTIVE_GAME_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
+
 // Ensure data directory exists
 const ensureDataDir = async () => {
     try {
@@ -52,24 +56,34 @@ export const gameStorage = {
     },
 
     async saveGame(roomId: string, state: GameState): Promise<void> {
+        // Update lastActivity timestamp
+        const stateWithActivity = { ...state, lastActivity: Date.now() };
+
         if (IS_SUPABASE_CONFIGURED) {
             const { error } = await supabase
                 .from('games')
                 .upsert({
                     room_id: roomId,
-                    state: state,
+                    state: stateWithActivity,
                     visibility: state.settings.visibility,
                     status: state.status,
+                    updated_at: new Date().toISOString(),
                 });
 
             if (error) {
                 console.error('Supabase save error:', error);
                 throw new Error('Failed to save game state');
             }
+
+            // Run cleanup in background (don't await)
+            this.cleanupOldGames().catch(console.error);
         } else {
             const games = await readLocalData();
-            games[roomId] = state;
+            games[roomId] = stateWithActivity;
             await writeLocalData(games);
+
+            // Cleanup old local games
+            await this.cleanupOldGames();
         }
     },
 
@@ -102,6 +116,50 @@ export const gameStorage = {
             const games = await readLocalData();
             delete games[roomId];
             await writeLocalData(games);
+        }
+    },
+
+    async cleanupOldGames(): Promise<void> {
+        const now = Date.now();
+
+        if (IS_SUPABASE_CONFIGURED) {
+            // Delete finished games older than 5 minutes
+            const finishedCutoff = new Date(now - FINISHED_GAME_EXPIRY_MS).toISOString();
+            await supabase
+                .from('games')
+                .delete()
+                .eq('status', 'finished')
+                .lt('updated_at', finishedCutoff);
+
+            // Delete inactive games older than 30 minutes
+            const inactiveCutoff = new Date(now - INACTIVE_GAME_EXPIRY_MS).toISOString();
+            await supabase
+                .from('games')
+                .delete()
+                .lt('updated_at', inactiveCutoff);
+        } else {
+            const games = await readLocalData();
+            let changed = false;
+
+            for (const [roomId, game] of Object.entries(games)) {
+                const lastActivity = (game as any).lastActivity || game.createdAt;
+                const age = now - lastActivity;
+
+                // Delete finished games after 5 minutes
+                if (game.status === 'finished' && age > FINISHED_GAME_EXPIRY_MS) {
+                    delete games[roomId];
+                    changed = true;
+                }
+                // Delete inactive games after 30 minutes
+                else if (age > INACTIVE_GAME_EXPIRY_MS) {
+                    delete games[roomId];
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                await writeLocalData(games);
+            }
         }
     }
 };

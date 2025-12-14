@@ -44,11 +44,12 @@ const getBestQuestion = (eliminatedIds: string[]) => {
     return `Does the person have ${attr} as ${val}?`;
 };
 
-// Check if the last action was a question (needs answer)
-const needsAnswer = (history: GameState['history']) => {
-    if (history.length === 0) return false;
+// Check if the last action was a question from the opponent (needs answer from current player)
+const needsAnswerFrom = (history: GameState['history'], currentPlayerId: string | null) => {
+    if (history.length === 0 || !currentPlayerId) return false;
     const lastAction = history[history.length - 1];
-    return lastAction.action === 'ask' && lastAction.playerId !== 'system';
+    // Only needs answer if: last action was ASK AND it wasn't from the current player (i.e., opponent asked)
+    return lastAction.action === 'ask' && lastAction.playerId !== 'system' && lastAction.playerId !== currentPlayerId;
 };
 
 export default function GameControls({ game, playerId }: { game: GameState, playerId: string | null }) {
@@ -57,7 +58,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
 
     const isMyTurn = game.turnPlayerId === playerId;
     const isSpectator = !playerId || !game.players[playerId];
-    const waitingForAnswer = needsAnswer(game.history);
+    const waitingForAnswer = needsAnswerFrom(game.history, playerId);
 
     // Suggest Questions Logic
     const myPlayer = playerId ? game.players[playerId] : null;
