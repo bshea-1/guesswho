@@ -71,7 +71,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
             <div className="w-full md:w-1/4 border-r border-white/10 flex flex-col bg-slate-900/50">
                 <div className="p-4 border-b border-white/10">
                     <div className="flex items-center justify-between mb-2">
-                        <h2 className="font-bold text-xl text-yellow-400">🎭 Guess Who</h2>
+                        <h2 className="font-bold text-xl text-yellow-400">Guess Who</h2>
                         <button
                             onClick={() => router.push('/')}
                             className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"

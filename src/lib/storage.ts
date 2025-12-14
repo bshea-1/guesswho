@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const IS_SUPABASE_CONFIGURED = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const IS_LOCAL = process.env.NODE_ENV === 'development';
 const LOCAL_DATA_DIR = path.join(process.cwd(), 'data');
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'games.json');
 
@@ -11,8 +12,14 @@ const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'games.json');
 const FINISHED_GAME_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const INACTIVE_GAME_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes
 
-// Ensure data directory exists
+// In-memory fallback for production without Supabase
+// NOTE: This will NOT persist across serverless function cold starts!
+// This is only a temporary fallback - Supabase should be configured for production
+const memoryStore = new Map<string, GameState>();
+
+// Ensure data directory exists (local only)
 const ensureDataDir = async () => {
+    if (!IS_LOCAL) return;
     try {
         await fs.access(LOCAL_DATA_DIR);
     } catch {
@@ -22,7 +29,12 @@ const ensureDataDir = async () => {
 
 // Helper to read local file
 const readLocalData = async (): Promise<Record<string, GameState>> => {
-    if (IS_SUPABASE_CONFIGURED) return {};
+    if (!IS_LOCAL) {
+        // Convert memoryStore Map to object for production fallback
+        const obj: Record<string, GameState> = {};
+        memoryStore.forEach((v, k) => obj[k] = v);
+        return obj;
+    }
     try {
         await ensureDataDir();
         const data = await fs.readFile(LOCAL_DATA_FILE, 'utf-8');
@@ -34,7 +46,12 @@ const readLocalData = async (): Promise<Record<string, GameState>> => {
 
 // Helper to write local file
 const writeLocalData = async (data: Record<string, GameState>) => {
-    if (IS_SUPABASE_CONFIGURED) return;
+    if (!IS_LOCAL) {
+        // Update memoryStore for production fallback
+        memoryStore.clear();
+        Object.entries(data).forEach(([k, v]) => memoryStore.set(k, v));
+        return;
+    }
     await ensureDataDir();
     await fs.writeFile(LOCAL_DATA_FILE, JSON.stringify(data, null, 2));
 };
