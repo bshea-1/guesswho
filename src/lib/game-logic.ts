@@ -2,6 +2,64 @@ import { GameState, Player, Character, Turn, ChatMessage } from './types';
 import { CHARACTERS } from './characters';
 import { sanitizeName } from './validation';
 
+export type GameActionEnvelope = {
+    playerId: string;
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH';
+    payload?: any;
+};
+
+// Replaced by unified joinGame
+export function addSpectator(state: GameState): GameState {
+    return state;
+}
+
+// Logic to start a match given two player IDs
+function startMatchLogic(state: GameState, p1Id: string, p2Id: string): GameState {
+    // Remove them from queue if there
+    const newQueue = state.queue.filter(id => id !== p1Id && id !== p2Id);
+
+    const resetPlayers = { ...state.players };
+
+    // Reset everyone to spectator first (except host keeps host role visually via hostId check, but functionally is player/spectator)
+    Object.keys(resetPlayers).forEach(pid => {
+        const p = resetPlayers[pid];
+        // Reset game state props
+        resetPlayers[pid] = {
+            ...p,
+            role: 'spectator', // Reset to default spectator
+            characterId: null,
+            eliminatedIds: [],
+            isReady: true // Auto-ready for match
+        };
+        if (pid === state.hostId) {
+            // Host always has 'host' logic available via state.hostId, but role determines play
+            // If we reset them to spectator here, we re-assign below if they are playing
+        }
+    });
+
+    // Set active players
+    resetPlayers[p1Id].role = 'player';
+    resetPlayers[p2Id].role = 'player';
+
+    // Assign Characters
+    const shuffled = [...CHARACTERS].sort(() => 0.5 - Math.random());
+    resetPlayers[p1Id].characterId = shuffled[0].id;
+    resetPlayers[p2Id].characterId = shuffled[1].id;
+
+    const turnPlayerId = Math.random() > 0.5 ? p1Id : p2Id;
+
+    return {
+        ...state,
+        players: resetPlayers,
+        queue: newQueue,
+        status: 'playing', // Party status
+        matchStatus: 'playing',
+        turnPlayerId,
+        winnerId: null,
+        history: [{ playerId: 'system', action: 'join', content: 'Match Started', timestamp: Date.now() }],
+    };
+}
+
 export function createInitialGameState(
     roomId: string,
     hostName: string,
@@ -15,7 +73,8 @@ export function createInitialGameState(
             [hostId]: {
                 id: hostId,
                 name: hostName,
-                role: 'host',
+                // Host starts as Player 1
+                role: 'player',
                 characterId: null,
                 eliminatedIds: [],
                 isReady: false,
@@ -36,8 +95,32 @@ export function createInitialGameState(
 export function joinGame(state: GameState, playerId: string, playerName: string): GameState {
     if (state.players[playerId]) return state; // Already joined
 
-    // Everyone joins as spectator initially, unless it's the host (handled in create)
-    // Host can promote them later
+    // Check how many players currently exist (to decide role)
+    const playerCount = Object.keys(state.players).length;
+
+    // If only 1 player (Host), this new person is Player 2
+    // And we should AUTO-START the match
+    if (playerCount === 1) {
+        // Add as Player 2
+        const stateWithP2: GameState = {
+            ...state,
+            players: {
+                ...state.players,
+                [playerId]: {
+                    id: playerId,
+                    name: playerName,
+                    role: 'player',
+                    characterId: null,
+                    eliminatedIds: [],
+                    isReady: true,
+                }
+            }
+        };
+        // Auto-start using Host and New Player
+        return startMatchLogic(stateWithP2, state.hostId, playerId);
+    }
+
+    // Otherwise join as spectator
     return {
         ...state,
         players: {
@@ -52,17 +135,6 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
             }
         }
     };
-}
-
-export type GameActionEnvelope = {
-    playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'JOIN_QUEUE' | 'LEAVE_QUEUE' | 'START_MATCH';
-    payload?: any;
-};
-
-// Replaced by unified joinGame
-export function addSpectator(state: GameState): GameState {
-    return state;
 }
 
 export function processAction(state: GameState, action: GameActionEnvelope): GameState {
@@ -85,20 +157,25 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         return { ...state, chat: newChat };
     }
 
-    // --- QUEUE ---
-    if (type === 'JOIN_QUEUE') {
-        if (state.queue.includes(playerId)) return state;
-        return {
-            ...state,
-            queue: [...state.queue, playerId]
-        };
-    }
+    // --- QUEUE MANAGEMENT (HOST ONLY) ---
+    if (type === 'TOGGLE_QUEUE_PLAYER') {
+        if (state.hostId !== playerId) throw new Error('Only host can manage queue');
 
-    if (type === 'LEAVE_QUEUE') {
-        return {
-            ...state,
-            queue: state.queue.filter(id => id !== playerId)
-        };
+        const targetId = payload?.targetId;
+        if (!targetId || !state.players[targetId]) return state;
+
+        const isInQueue = state.queue.includes(targetId);
+
+        // Cannot queue active players? Or maybe you can toggle them to be queued for NEXT match?
+        // Let's allow queuing anyone except maybe the host if they are managing?
+        // For simplicity: Toggle in/out
+
+        if (isInQueue) {
+            return { ...state, queue: state.queue.filter(id => id !== targetId) };
+        } else {
+            // Append to queue
+            return { ...state, queue: [...state.queue, targetId] };
+        }
     }
 
     // --- HOST: START MATCH ---
@@ -110,73 +187,33 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         let p2Id = payload?.p2Id;
 
         if (!p1Id || !p2Id) {
-            // Try taking from queue
+            // Host Logic:
+            // 1. If HOST is not in queue AND there's only 1 person in queue, Host plays against them?
+            // 2. If 2 people in queue, they play.
+            // 3. User Requirement: "Host can be a spectator in later matches"
+            // "Host can choose to leave match and become spectator" (handled by game over / reset)
+
+            // Simplest auto-selection:
+            // Take top 2 from Queue.
+            // If only 1 in queue, and Host is NOT that person (obviously), Host plays vs Queue[0].
+            // If 0 in queue -> Error? Or Host vs AI? (No AI). 
+
+            // Let's implement:
+            // If >= 2 in queue, take top 2.
+            // If 1 in queue, and Host is NOT that person (obviously), Host plays vs Queue[0].
+
             if (state.queue.length >= 2) {
                 p1Id = state.queue[0];
                 p2Id = state.queue[1];
+            } else if (state.queue.length === 1) {
+                p1Id = state.hostId;
+                p2Id = state.queue[0];
             } else {
-                throw new Error('Not enough players in queue');
+                throw new Error('Not enough players (needs 2 in queue or Host + 1)');
             }
         }
 
-        // Remove them from queue
-        const newQueue = state.queue.filter(id => id !== p1Id && id !== p2Id);
-
-        // Reset players state
-        const resetPlayers = { ...state.players };
-
-        // Reset everyone to spectator first (except host keeps host role visually, but functionally plays?)
-        // Requirement: "A party can have 1 Host, 2 active players". Host CAN be a player.
-        // So we update roles for P1 and P2 to 'player'.
-
-        Object.keys(resetPlayers).forEach(pid => {
-            const p = resetPlayers[pid];
-            // Reset game state props
-            resetPlayers[pid] = {
-                ...p,
-                role: (pid === state.hostId) ? 'host' : 'spectator', // Reset to default
-                characterId: null,
-                eliminatedIds: [],
-                isReady: true // Auto-ready for match
-            };
-        });
-
-        // Set active players
-        resetPlayers[p1Id].role = (p1Id === state.hostId) ? 'host' : 'player'; // Maintain host role string if host is playing? 
-        // Logic complication: The type defines 'host' | 'player' | 'spectator'. 
-        // If Host plays, they are effectively a player. But we need to know they are host.
-        // Let's assume Role is primarily for Game Logic. Host privileges are checked via state.hostId.
-        // So allow Host to have 'player' role during match? 
-        // Or keep 'host' and treat 'host' as a valid player role for game logic actions?
-        // Let's Keep 'host' role string, but ensure game logic checks (role === 'player' || role === 'host').
-
-        // Actually, simpler: Role is strictly for UI/Logic. 
-        // Let's say: 'host' is just a privileged 'spectator' who isn't playing. 
-        // If Host plays, they become 'player'? But then we lose the badge?
-        // Let's separate Privileges (hostId) from Game Role (active player).
-        // Let's set their role to 'player' for the match so logic works easily. 
-        // UI can check (id === hostId) to show "Host" badge regardless of role.
-
-        resetPlayers[p1Id].role = 'player';
-        resetPlayers[p2Id].role = 'player';
-
-        // Assign Characters
-        const shuffled = [...CHARACTERS].sort(() => 0.5 - Math.random());
-        resetPlayers[p1Id].characterId = shuffled[0].id;
-        resetPlayers[p2Id].characterId = shuffled[1].id;
-
-        const turnPlayerId = Math.random() > 0.5 ? p1Id : p2Id;
-
-        return {
-            ...state,
-            players: resetPlayers,
-            queue: newQueue,
-            status: 'playing', // Party status
-            matchStatus: 'playing',
-            turnPlayerId,
-            winnerId: null,
-            history: [{ playerId: 'system', action: 'join', content: 'Match Started', timestamp: Date.now() }],
-        };
+        return startMatchLogic(state, p1Id, p2Id);
     }
 
 

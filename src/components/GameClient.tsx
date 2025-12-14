@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
 import { GameState } from '@/lib/types';
-import { Loader2, Copy, Check, Home } from 'lucide-react';
+import { Loader2, Copy, Check, Home, Crown } from 'lucide-react';
 import GameBoard from './GameBoard';
 import GameControls from './GameControls';
 import GameLog from './GameLog';
@@ -141,12 +141,12 @@ export default function GameClient({ roomId }: { roomId: string }) {
                     <div>
                         <h3 className="text-xs font-bold text-yellow-500 uppercase tracking-wider mb-2">Host</h3>
                         <div className="flex items-center gap-2 bg-yellow-900/20 border border-yellow-700/50 p-2 rounded-lg">
-                            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                            <Crown size={16} className="text-yellow-400 fill-yellow-400" />
                             <span className="font-medium text-yellow-200">{host?.name || 'Unknown'}</span>
                         </div>
                     </div>
 
-                    {/* Active Players */}
+                    {/* Active Match Section */}
                     <div>
                         <h3 className="text-xs font-bold text-green-500 uppercase tracking-wider mb-2">Active Match</h3>
                         {activePlayers.length > 0 ? (
@@ -154,6 +154,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                 {activePlayers.map(p => (
                                     <div key={p.id} className={`flex items-center justify-between p-2 rounded-lg bg-green-900/20 border border-green-700/30 ${game.turnPlayerId === p.id ? 'ring-1 ring-green-500' : ''}`}>
                                         <div className="flex items-center gap-2">
+                                            {game.hostId === p.id && <Crown size={14} className="text-yellow-400 fill-yellow-400" />}
                                             {game.turnPlayerId === p.id && <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
                                             <span className="font-medium text-white">{p.name}</span>
                                         </div>
@@ -165,19 +166,38 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         )}
                     </div>
 
-                    {/* Spectators & Queue */}
+                    {/* Spectators & Queue Section */}
                     <div>
                         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Spectators ({spectators.length})</h3>
                         <div className="space-y-1">
                             {spectators.map(p => (
-                                <div key={p.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800/50 transition text-sm">
-                                    <span className="text-slate-300">{p.name}</span>
+                                <div
+                                    key={p.id}
+                                    onClick={() => iamHost ? sendAction('TOGGLE_QUEUE_PLAYER', { targetId: p.id }) : null}
+                                    className={`flex items-center justify-between p-2 rounded-lg transition text-sm ${iamHost ? 'cursor-pointer hover:bg-slate-800' : ''}`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-slate-300">{p.name}</span>
+                                    </div>
                                     {game.queue.includes(p.id) && (
-                                        <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">IN QUEUE</span>
+                                        <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                            IN QUEUE
+                                            {iamHost && <span className="opacity-50 text-[8px]">(click to remove)</span>}
+                                        </span>
+                                    )}
+                                    {iamHost && !game.queue.includes(p.id) && (
+                                        <span className="text-[10px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100">
+                                            + Queue
+                                        </span>
                                     )}
                                 </div>
                             ))}
                         </div>
+                        {spectators.length === 0 && <p className="text-slate-600 text-xs italic">No spectators</p>}
+
+                        {iamHost && spectators.length > 0 && (
+                            <p className="text-[10px] text-slate-500 mt-2 text-center">Click a spectator to add/remove from queue</p>
+                        )}
                         {/* Queue Actions */}
                         {!iamActive && !iamHost && (
                             <div className="mt-2">

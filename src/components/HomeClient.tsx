@@ -245,13 +245,10 @@ export default function HomeClient() {
                                     <button onClick={() => setMode('join')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
                                         <Users size={20} /> Join
                                     </button>
-                                    <button onClick={() => setMode('spectate')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
+                                    <button onClick={() => router.push('/matches')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
                                         <Eye size={20} /> Watch
                                     </button>
                                 </div>
-                                <button onClick={() => router.push('/matches')} className="w-full bg-slate-800/50 hover:bg-slate-800 text-slate-400 p-3 rounded-xl font-medium transition flex items-center justify-center gap-2 mt-2">
-                                    <Tv size={18} /> Browse Public Matches
-                                </button>
                             </div>
                         )}
 
