@@ -1,4 +1,4 @@
-```
+
 import { useState } from 'react';
 import { GameState } from '@/lib/types';
 import { Mic, Send, MessageSquare, AlertCircle } from 'lucide-react';
@@ -15,8 +15,8 @@ const getBestQuestion = (eliminatedIds: string[]) => {
     // Count value frequencies
     remaining.forEach(char => {
         Object.entries(char.attributes).forEach(([key, val]) => {
-           const id = `${ key }:${ val } `;
-           stats[id] = (stats[id] || 0) + 1;
+            const id = `${key}:${val} `;
+            stats[id] = (stats[id] || 0) + 1;
         });
     });
 
@@ -34,14 +34,14 @@ const getBestQuestion = (eliminatedIds: string[]) => {
 
     if (!best.id) return null;
     const [attr, val] = best.id.split(':');
-    
+
     // Formatting
     if (attr === 'glasses') return `Does the person wear GLASSES ? `;
     if (attr === 'hat') return `Does the person wear a HAT ? `;
-    if (attr === 'hairColor') return `Is their hair ${ val.toUpperCase() }?`;
-    if (attr === 'gender') return `Is the person ${ val.toUpperCase() }?`;
-    
-    return `Does the person have ${ attr } as ${ val }?`;
+    if (attr === 'hairColor') return `Is their hair ${val.toUpperCase()}?`;
+    if (attr === 'gender') return `Is the person ${val.toUpperCase()}?`;
+
+    return `Does the person have ${attr} as ${val}?`;
 };
 
 export default function GameControls({ game, playerId }: { game: GameState, playerId: string | null }) {
@@ -100,7 +100,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
             <div className="flex justify-center p-4">
                 <button
                     onClick={() => sendAction('TOGGLE_READY', null)}
-                    className={`px - 8 py - 3 rounded - xl font - bold text - xl transition ${ me.isReady ? 'bg-green-600 hover:bg-green-500' : 'bg-slate-700 hover:bg-slate-600' } `}
+                    className={`px - 8 py - 3 rounded - xl font - bold text - xl transition ${me.isReady ? 'bg-green-600 hover:bg-green-500' : 'bg-slate-700 hover:bg-slate-600'} `}
                 >
                     {me.isReady ? 'READY!' : 'CLICK TO READY UP'}
                 </button>
@@ -118,10 +118,10 @@ export default function GameControls({ game, playerId }: { game: GameState, play
             ) : (
                 <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
-                        <button onClick={() => setMode('ask')} className={`flex - 1 py - 2 rounded - lg font - bold text - sm ${ mode === 'ask' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400' } `}>
+                        <button onClick={() => setMode('ask')} className={`flex - 1 py - 2 rounded - lg font - bold text - sm ${mode === 'ask' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'} `}>
                             QUESTION
                         </button>
-                        <button onClick={() => setMode('guess')} className={`flex - 1 py - 2 rounded - lg font - bold text - sm ${ mode === 'guess' ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400' } `}>
+                        <button onClick={() => setMode('guess')} className={`flex - 1 py - 2 rounded - lg font - bold text - sm ${mode === 'guess' ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400'} `}>
                             GUESS WHO
                         </button>
                     </div>
@@ -157,16 +157,16 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                     </div>
 
                     <div className="flex justify-end items-center gap-4">
-                      {suggestion && (
-                          <div className="text-xs text-blue-400 flex items-center gap-1 animate-pulse cursor-pointer" onClick={() => setInput(suggestion)}>
-                             <AlertCircle size={12} />
-                             Suggested: {suggestion}
-                          </div>
-                      )}
-                      <button onClick={() => sendAction('END_TURN', null)} className="text-xs text-slate-500 hover:text-red-400 font-bold px-2 py-1">
-                          END TURN MANUALLY
-                      </button>
-                 </div>
+                        {suggestion && (
+                            <div className="text-xs text-blue-400 flex items-center gap-1 animate-pulse cursor-pointer" onClick={() => setInput(suggestion)}>
+                                <AlertCircle size={12} />
+                                Suggested: {suggestion}
+                            </div>
+                        )}
+                        <button onClick={() => sendAction('END_TURN', null)} className="text-xs text-slate-500 hover:text-red-400 font-bold px-2 py-1">
+                            END TURN MANUALLY
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
