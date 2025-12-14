@@ -27,14 +27,18 @@ export default function HomeClient() {
         setShowBanner(false);
     }, [clearGame]);
 
-    // Banner Logic: Delay 5s and check validity
+    // Banner Logic: Show immediately if game exists, then validate in background
     useEffect(() => {
         if (!hasActiveGame) {
             setShowBanner(false);
             return;
         }
 
-        const timer = setTimeout(async () => {
+        // Show banner immediately
+        setShowBanner(true);
+
+        // Validate in background - if game is gone/finished, clear it
+        const validateGame = async () => {
             try {
                 const res = await fetch(`/api/game/${roomId}?playerId=${playerId}`);
                 if (res.status === 404) {
@@ -45,15 +49,13 @@ export default function HomeClient() {
                 // Clear if the game/match is finished or doesn't exist
                 if (data.status === 'finished' || data.matchStatus === 'finished') {
                     clearActiveGame();
-                } else {
-                    setShowBanner(true);
                 }
             } catch (e) {
                 console.error('Failed to validate game existence', e);
             }
-        }, 5000);
+        };
 
-        return () => clearTimeout(timer);
+        validateGame();
     }, [hasActiveGame, roomId, playerId, clearActiveGame]);
 
     const handleNameSubmit = async () => {

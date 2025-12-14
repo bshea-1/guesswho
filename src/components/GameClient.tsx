@@ -25,7 +25,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
     };
 
     const handleLeaveParty = () => {
-        clearGame();
+        // Don't clear the game - keep it cached so user can rejoin
         router.push('/');
     };
 
