@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
-import { Loader2, Plus, Users, Eye, Tv, ArrowRight, X, Check } from 'lucide-react';
+import { Loader2, Plus, Users, Eye, Tv, X, Check } from 'lucide-react';
 
 export default function HomeClient() {
     const router = useRouter();
@@ -21,6 +21,12 @@ export default function HomeClient() {
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
+
+    const clearActiveGame = useCallback(() => {
+        setRoomId(null);
+        setPlayerId(null);
+        setShowBanner(false);
+    }, [setRoomId, setPlayerId]);
 
     // Banner Logic: Delay 5s and check validity
     useEffect(() => {
@@ -48,22 +54,13 @@ export default function HomeClient() {
         }, 5000);
 
         return () => clearTimeout(timer);
-    }, [hasActiveGame, roomId, playerId]);
-
-    const clearActiveGame = () => {
-        setRoomId(null);
-        setPlayerId(null);
-        setShowBanner(false);
-    };
+    }, [hasActiveGame, roomId, playerId, clearActiveGame]);
 
     const handleNameSubmit = async () => {
         if (!localName.trim()) { setError('Name is required'); return; }
         setLoading(true);
         setError('');
         setLoadingMessage('Joining Party...');
-
-        // Random delay 1s - 1.5s
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 1000));
 
         try {
             setUsername(localName);
@@ -81,7 +78,7 @@ export default function HomeClient() {
 
             // Proceed to game
             router.push(`/game/${roomId}`);
-        } catch (e: any) {
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(e.message);
             setLoading(false);
             setLoadingMessage('');
@@ -93,8 +90,8 @@ export default function HomeClient() {
         setError('');
         setLoadingMessage('Creating Party...');
 
-        // Random delay 1s - 2.5s
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 1500 + 1000));
+        // Random delay 0.5s - 1.25s (Halved)
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 750 + 500));
 
         try {
             // Create with default name first
@@ -120,7 +117,7 @@ export default function HomeClient() {
             setNamingMode(true);
             setLoading(false);
             setLoadingMessage('');
-        } catch (e: any) {
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(e.message);
             setLoading(false);
             setLoadingMessage('');
@@ -154,7 +151,7 @@ export default function HomeClient() {
             setMode(null);
             setNamingMode(true);
             setLoading(false);
-        } catch (e: any) {
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(e.message);
             setLoading(false);
         }
@@ -180,7 +177,7 @@ export default function HomeClient() {
                                 <div className="inline-block p-3 rounded-full bg-green-500/20 text-green-400 mb-4">
                                     <Check size={32} />
                                 </div>
-                                <h2 className="text-2xl font-bold text-white">You're in!</h2>
+                                <h2 className="text-2xl font-bold text-white">You&apos;re in!</h2>
                                 <p className="text-slate-400">Room: <span className="font-mono text-white">{roomId}</span></p>
                             </div>
 
@@ -226,33 +223,43 @@ export default function HomeClient() {
                     <p className="mt-2 text-slate-400">Multiplayer Edition</p>
                 </div>
 
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl min-h-[300px] flex flex-col justify-center">
-                    {/* Current Game Banner - Only show if state is true (after delay) */}
-                    {showBanner && !loading && (
-                        <div className="mb-6 p-4 bg-green-900/30 border border-green-600/50 rounded-xl">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-green-400 font-bold text-sm">Active Game</p>
-                                    <p className="text-white text-lg font-mono">{roomId}</p>
+                {/* Current Game Banner - Moved Outside */}
+                {showBanner && !loading && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="w-full bg-slate-900/80 border border-green-500/30 rounded-2xl p-4 shadow-lg backdrop-blur-md"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-green-500/20 rounded-lg text-green-400">
+                                    <Tv size={20} />
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => router.push(`/game/${roomId}`)}
-                                        className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold transition"
-                                    >
-                                        <ArrowRight size={18} /> Resume
-                                    </button>
-                                    <button
-                                        onClick={clearActiveGame}
-                                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition"
-                                        title="Leave Game"
-                                    >
-                                        <X size={18} />
-                                    </button>
+                                <div>
+                                    <p className="text-green-400 font-bold text-xs uppercase tracking-wider">Active Match</p>
+                                    <p className="text-white font-mono text-lg">{roomId}</p>
                                 </div>
                             </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => router.push(`/game/${roomId}`)}
+                                    className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition"
+                                >
+                                    Rejoin
+                                </button>
+                                <button
+                                    onClick={clearActiveGame}
+                                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition"
+                                    title="Dismiss"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
                         </div>
-                    )}
+                    </motion.div>
+                )}
+
+                <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl min-h-[300px] flex flex-col justify-center">
 
                     <div className="space-y-4">
                         {/* Name input removed from landing page */}
