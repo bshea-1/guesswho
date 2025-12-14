@@ -9,6 +9,7 @@ export type Player = {
     characterId: string | null; // The character they are assigned
     eliminatedIds: string[]; // Characters this player has crossed out
     isReady: boolean;
+    wins: number;
 };
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';

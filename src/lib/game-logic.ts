@@ -85,6 +85,7 @@ export function createInitialGameState(
                 characterId: null,
                 eliminatedIds: [],
                 isReady: false,
+                wins: 0,
             }
         },
         queue: [],
@@ -121,6 +122,7 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
                     characterId: null,
                     eliminatedIds: [],
                     isReady: true,
+                    wins: 0,
                 }
             }
         };
@@ -140,6 +142,7 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
                 characterId: null,
                 eliminatedIds: [],
                 isReady: false,
+                wins: 0,
             }
         }
     };
@@ -332,6 +335,13 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             ...state,
             matchStatus: 'finished',
             winnerId: isHostAction ? null : (opponentId || null),
+            players: (opponentId && !isHostAction) ? {
+                ...state.players,
+                [opponentId]: {
+                    ...state.players[opponentId],
+                    wins: (state.players[opponentId].wins || 0) + 1
+                }
+            } : state.players,
             history: [...state.history, {
                 playerId: 'system',
                 action: 'GAME_OVER',
@@ -423,6 +433,13 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 ...state,
                 matchStatus: 'finished',
                 winnerId: playerId,
+                players: {
+                    ...state.players,
+                    [playerId]: {
+                        ...state.players[playerId],
+                        wins: (state.players[playerId].wins || 0) + 1
+                    }
+                },
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'WIN',
@@ -435,6 +452,13 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 ...state,
                 matchStatus: 'finished',
                 winnerId: opponentId,
+                players: {
+                    ...state.players,
+                    [opponentId]: {
+                        ...state.players[opponentId],
+                        wins: (state.players[opponentId].wins || 0) + 1
+                    }
+                },
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'GAME_OVER',

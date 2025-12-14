@@ -200,7 +200,10 @@ function GameSidebar({
                                     <div className="flex items-center gap-2">
                                         {game.hostId === p.id && <Crown size={14} className="text-yellow-400 fill-yellow-400" />}
                                         {game.turnPlayerId === p.id && <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
-                                        <span className="font-medium text-white">{p.name}</span>
+                                        <div className="flex flex-col leading-tight">
+                                            <span className="font-medium text-white">{p.name}</span>
+                                            <span className="text-[10px] text-slate-400">{p.wins || 0} Wins</span>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -224,7 +227,7 @@ function GameSidebar({
                                     onClick={() => iamHost ? sendAction('TOGGLE_QUEUE_PLAYER', { targetId: p.id }) : null}
                                 >
                                     {game.hostId === p.id && <Crown size={14} className="text-yellow-400 fill-yellow-400" />}
-                                    <span className="text-slate-300">{p.name}</span>
+                                    <span className="text-slate-300">{p.name} <span className="text-slate-500 text-[10px]">({p.wins || 0} Wins)</span></span>
                                     {game.queue.includes(p.id) && (
                                         <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded flex items-center gap-1">
                                             IN QUEUE
