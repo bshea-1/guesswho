@@ -10,7 +10,7 @@ const INPUT_DIR = path.join(__dirname, '../assets/original_characters');
 const OUTPUT_DIR = path.join(__dirname, '../public/characters');
 
 // Border thickness as percentage of image dimension
-const BORDER_PERCENT = 0.15; // 15% on each side is considered border
+const BORDER_PERCENT = 0.05; // 5% on each side is considered border
 
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
