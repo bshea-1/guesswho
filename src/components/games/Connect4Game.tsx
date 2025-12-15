@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameState, Player } from '@/lib/types';
-import { Connect4Board, ROWS, COLS } from '@/lib/games/connect4';
+import { Connect4Board, ROWS, COLS, dropPiece, Connect4Color } from '@/lib/games/connect4';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Connect4Game({
@@ -21,15 +21,34 @@ export default function Connect4Game({
 }) {
     const board = (game.board as Connect4Board) || Array(ROWS).fill(Array(COLS).fill(null));
     const myTurn = game.turnPlayerId === playerId;
-
     // Determine my color (if active)
     const myColors = activePlayers.find(p => p.id === playerId)?.characterId; // 'red' or 'yellow'
+
+    // Initialize local board for optimistic updates
+    const [localBoard, setLocalBoard] = useState<Connect4Board>(board);
+
+    // Sync local board with server board, preventing race conditions (flicker)
+    useEffect(() => {
+        // Simple helper to count pieces
+        const countPieces = (b: Connect4Board) =>
+            b.flat().filter(c => c !== null).length;
+
+        const serverCount = countPieces(board);
+        const localCount = countPieces(localBoard);
+
+        // If server has same or more pieces, or if board was reset (empty), sync.
+        // If server has fewer pieces but it's not a reset, we assume local is ahead (optimistic).
+        // Reset detection: serverCount is 0 (and local might have pieces)
+        if (serverCount >= localCount || serverCount === 0) {
+            setLocalBoard(board);
+        }
+    }, [game.board]); // Depend on the raw server prop
 
     // Track which cells have been animated to prevent re-animation on poll updates
     const animatedCellsRef = useRef<Set<string>>(new Set());
     const [animatedCells, setAnimatedCells] = useState<Set<string>>(new Set());
 
-    // Update animated cells when board changes
+    // Update animated cells when localBoard changes
     useEffect(() => {
         const newAnimated = new Set(animatedCells);
         let hasNewPiece = false;
@@ -37,7 +56,7 @@ export default function Connect4Game({
         for (let row = 0; row < ROWS; row++) {
             for (let col = 0; col < COLS; col++) {
                 const cellKey = `${row}-${col}`;
-                if (board[row]?.[col] && !animatedCellsRef.current.has(cellKey)) {
+                if (localBoard[row]?.[col] && !animatedCellsRef.current.has(cellKey)) {
                     newAnimated.add(cellKey);
                     animatedCellsRef.current.add(cellKey);
                     hasNewPiece = true;
@@ -48,11 +67,27 @@ export default function Connect4Game({
         if (hasNewPiece) {
             setAnimatedCells(newAnimated);
         }
-    }, [board]);
+    }, [localBoard]);
 
-    const handleColumnClick = (colIndex: number) => {
+    const handleColumnClick = async (colIndex: number) => {
         if (!iamActive || !myTurn || game.matchStatus !== 'playing') return;
-        sendAction('DROP_PIECE', colIndex);
+
+        // Optimistic update
+        const color = myColors as Connect4Color;
+        if (!color) return;
+
+        const { success, newBoard } = dropPiece(localBoard, colIndex, color);
+
+        if (success) {
+            setLocalBoard(newBoard);
+            // Send to server
+            try {
+                await sendAction('DROP_PIECE', colIndex);
+            } catch (error) {
+                console.error("Failed to drop piece:", error);
+                // On error, we might want to revert, but standard sync will fix it eventually
+            }
+        }
     };
 
     // Check if a cell should animate (is new)
@@ -96,7 +131,7 @@ export default function Connect4Game({
 
                             {/* Rows (Top to Bottom) */}
                             {Array.from({ length: ROWS }).map((_, rowIndex) => {
-                                const cell = board[rowIndex]?.[colIndex];
+                                const cell = localBoard[rowIndex]?.[colIndex];
                                 const cellKey = `${rowIndex}-${colIndex}`;
                                 const isNew = shouldAnimate(rowIndex, colIndex);
 
