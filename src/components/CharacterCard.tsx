@@ -10,6 +10,9 @@ interface CharacterCardProps {
     char: Character;
     isEliminated: boolean;
     isMyChar: boolean;
+    ownerName?: string;
+    isOpponentChar?: boolean;
+    opponentName?: string;
     guessMode: boolean;
     isMyTurn: boolean;
     onClick: (id: string, name: string) => void;
@@ -19,6 +22,9 @@ const CharacterCard = memo(function CharacterCard({
     char,
     isEliminated,
     isMyChar,
+    ownerName,
+    isOpponentChar,
+    opponentName,
     guessMode,
     isMyTurn,
     onClick
@@ -35,7 +41,8 @@ const CharacterCard = memo(function CharacterCard({
                 guessMode && isMyTurn && !isMyChar ? "border-orange-500 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-500/30" :
                     isEliminated ? "border-slate-800 opacity-40 grayscale hover:grayscale-0 hover:opacity-60" :
                         "border-blue-500/30 hover:border-blue-400 hover:shadow-md hover:shadow-blue-500/20 bg-slate-800",
-                isMyChar && "ring-2 ring-green-500 border-green-500"
+                isMyChar && "ring-2 ring-green-500 border-green-500",
+                isOpponentChar && "ring-2 ring-red-500 border-red-500"
             )}
         >
             <Image
@@ -54,8 +61,14 @@ const CharacterCard = memo(function CharacterCard({
             )}
 
             {isMyChar && (
-                <div className="absolute top-1 right-1 bg-green-600 text-[8px] sm:text-[10px] px-1 py-0.5 rounded-full font-bold shadow-sm z-10">
-                    YOU
+                <div className="absolute top-1 right-1 bg-green-600 text-[8px] sm:text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm z-10 max-w-[80%] truncate">
+                    {ownerName || 'YOU'}
+                </div>
+            )}
+
+            {isOpponentChar && (
+                <div className="absolute top-1 left-1 bg-red-600 text-[8px] sm:text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm z-10 max-w-[80%] truncate">
+                    {opponentName || 'THEM'}
                 </div>
             )}
 

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 }); // eslint-disable-line @typescript-eslint/no-explicit-any
         }
 
-        const { hostName, visibility } = result.data;
+        const { hostName, visibility, gameType } = result.data;
         // Default name if empty string provided
         const cleanName = sanitizeName(hostName || 'Host');
 
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         // Host ID is a secret session ID for the user
         const hostId = crypto.randomUUID();
 
-        const initialGame = createInitialGameState(roomId, cleanName, hostId, {
+        const initialGame = createInitialGameState(roomId, cleanName, hostId, gameType, {
             visibility,
             spectatorView: 'log', // Default
         });

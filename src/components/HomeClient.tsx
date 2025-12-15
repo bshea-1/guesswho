@@ -4,13 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
-import { Loader2, Plus, Users, Eye, Tv, X, Check } from 'lucide-react';
+import { GameType } from '@/lib/types';
+import { Loader2, Plus, Users, Eye, Tv, X, Check, Dices, Grid3X3, Search } from 'lucide-react'; // Added icons
 
 export default function HomeClient() {
     const router = useRouter();
     const { username, setUsername, playerId, setPlayerId, roomId, setRoomId, clearGame } = useGameStore();
     const [localName, setLocalName] = useState(username);
-    const [mode, setMode] = useState<'create' | 'join' | 'spectate' | null>(null);
+    const [mode, setMode] = useState<'create' | 'join' | 'spectate' | 'select-game' | null>(null);
+    const [selectedGame, setSelectedGame] = useState<GameType>('guess-who');
     // Removed gameMode state
     const [roomCode, setRoomCode] = useState('');
     const [loading, setLoading] = useState(false);
@@ -78,6 +80,7 @@ export default function HomeClient() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         hostName: localName, // Pass name directly
+                        gameType: selectedGame,
                         mode: undefined,
                         visibility
                     }),
@@ -147,11 +150,15 @@ export default function HomeClient() {
     };
 
     const handleCreate = async () => {
-        // Just trigger naming mode, defer creation
+        setMode('select-game');
+        setIsSpectatorMode(false);
+    };
+
+    const handleGameSelect = (game: GameType) => {
+        setSelectedGame(game);
         setPendingAction('create');
         setNamingMode(true);
         setMode(null);
-        setIsSpectatorMode(false);
     };
 
     const executeJoin = async (code: string, isSpectator: boolean, name?: string) => {
@@ -407,6 +414,53 @@ export default function HomeClient() {
                         )}
 
                         {/* Mode 'create' block Removed entirely */}
+
+                        {mode === 'select-game' && (
+                            <div className="space-y-4 pt-4">
+                                <h2 className="text-xl font-bold text-center text-white mb-4">Choose a Game</h2>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <button
+                                        onClick={() => handleGameSelect('guess-who')}
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition group text-left"
+                                    >
+                                        <div className="p-3 bg-blue-500/20 rounded-lg text-blue-400 group-hover:text-blue-300">
+                                            <Search size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white">Guess Who</div>
+                                            <div className="text-sm text-slate-400">Classic deduction game</div>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleGameSelect('monopoly')}
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-green-500 transition group text-left"
+                                    >
+                                        <div className="p-3 bg-green-500/20 rounded-lg text-green-400 group-hover:text-green-300">
+                                            <Dices size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white">Monopoly</div>
+                                            <div className="text-sm text-slate-400">Property trading board game</div>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleGameSelect('connect-4')}
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-red-500 transition group text-left"
+                                    >
+                                        <div className="p-3 bg-red-500/20 rounded-lg text-red-400 group-hover:text-red-300">
+                                            <Grid3X3 size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white">Connect 4</div>
+                                            <div className="text-sm text-slate-400">Strategy vertical checker game</div>
+                                        </div>
+                                    </button>
+                                </div>
+                                <button onClick={() => setMode(null)} className="w-full text-slate-500 text-sm hover:text-white pt-2">Cancel</button>
+                            </div>
+                        )}
 
                         {(mode === 'join' || mode === 'spectate') && (
                             <div className="space-y-4 pt-4">

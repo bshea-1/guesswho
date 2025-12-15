@@ -9,8 +9,12 @@ export type Player = {
     characterId: string | null; // The character they are assigned
     eliminatedIds: string[]; // Characters this player has crossed out
     isReady: boolean;
+    data?: any; // eslint-disable-next-line @typescript-eslint/no-explicit-any
     wins: number;
 };
+
+
+export type GameType = 'guess-who' | 'monopoly' | 'connect-4';
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
@@ -31,9 +35,11 @@ export type Turn = {
 
 export type GameState = {
     roomId: string; // Short code
+    gameType: GameType;
     hostId: string;
     players: Record<string, Player>; // All participants (Host, Players, Spectators)
     queue: string[]; // IDs of players waiting to play
+    board: any; // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];
     status: GameStatus; // Party Status
@@ -51,6 +57,7 @@ export type GameState = {
 export type CreateRoomParams = {
     hostName: string;
     visibility: GameState['settings']['visibility'];
+    gameType: GameType;
 };
 
 export type JoinRoomParams = {

@@ -88,12 +88,31 @@ export default function GameBoard({ game, targetPlayerId, viewerId }: { game: Ga
                     // Only pass isMyChar if we are allowed to see it
                     const isMyChar = canSeeSecret && char.id === myCharacterId;
 
+                    // Opponent character logic for spectators
+                    // Find the OTHER active player
+                    let isOpponentChar = false;
+                    let opponentName = '';
+
+                    if (isSpectator) {
+                        const opponent = Object.values(game.players).find(p =>
+                            p.id !== targetPlayerId &&
+                            (p.role === 'player' || (p.role === 'host' && p.characterId))
+                        );
+                        if (opponent && opponent.characterId === char.id) {
+                            isOpponentChar = true;
+                            opponentName = opponent.name;
+                        }
+                    }
+
                     return (
                         <CharacterCard
                             key={char.id}
                             char={char}
                             isEliminated={isEliminated}
                             isMyChar={!!isMyChar}
+                            ownerName={isMyBoard ? 'YOU' : targetPlayer.name}
+                            isOpponentChar={isOpponentChar}
+                            opponentName={opponentName}
                             // guessMode visual cues only on my board
                             guessMode={guessMode && isMyBoard}
                             isMyTurn={isMyTurn}

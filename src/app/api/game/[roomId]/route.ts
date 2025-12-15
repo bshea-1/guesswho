@@ -36,10 +36,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
     const { searchParams } = new URL(req.url);
     const playerId = searchParams.get('playerId');
 
+    // Determine if the requester is a spectator or a non-playing host
+    const requester = playerId ? game.players[playerId] : null;
+    const isSpectator = requester && (
+        requester.role === 'spectator' ||
+        (requester.role === 'host' && !requester.characterId)
+    );
+
     const sanitizedPlayers = Object.entries(game.players).reduce((acc, [pid, p]) => {
+        // Show characterId IF:
+        // 1. It's the player themselves
+        // 2. The game is finished (using matchStatus for accuracy, checking both)
+        // 3. The requester is a spectator (or non-playing host)
+        const shouldReveal =
+            pid === playerId ||
+            game.status === 'finished' ||
+            game.matchStatus === 'finished' ||
+            isSpectator;
+
         acc[pid] = {
             ...p,
-            characterId: (pid === playerId || game.status === 'finished') ? p.characterId : '???',
+            characterId: shouldReveal ? p.characterId : '???',
         };
         return acc;
     }, {} as typeof game.players);
