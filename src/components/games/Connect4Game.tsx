@@ -82,7 +82,7 @@ export default function Connect4Game({
             </div>
 
             {/* Game Board */}
-            <div className="relative bg-blue-700 p-2 sm:p-4 rounded-xl shadow-2xl border-4 border-blue-800">
+            <div className="relative bg-blue-700 p-2 text-center rounded-xl shadow-2xl">
                 <div className="grid grid-cols-7 gap-1 sm:gap-3">
                     {/* Columns */}
                     {Array.from({ length: COLS }).map((_, colIndex) => (
