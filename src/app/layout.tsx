@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Guess Who",
-  description: "Play the classic Guess Who? game online with friends!",
+  title: "Boredgames",
+  description: "Play classic board games like Guess Who, Connect 4, and Monopoly online with friends!",
   icons: {
     icon: "/favicon.png",
   },
