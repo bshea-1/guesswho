@@ -204,12 +204,28 @@ export default function HomeClient() {
     const handleJoin = async (isSpectator: boolean = false) => {
         if (!roomCode.trim()) { setError('Room Code is required'); return; }
 
-        // If Spectator, we can join immediately (anon) or ask for name?
-        // User asked: "game should not start until the person fully enters their name"
-        // Spectators don't start games. So spectators can probably follow old flow or new flow.
-        // Let's make everyone enter name first for consistency, unless "Watch Anonymously" chosen.
+        // Validate room exists before asking for name
+        setLoading(true);
+        setError('');
+        try {
+            const res = await fetch(`/api/game/${roomCode.trim().toUpperCase()}`);
+            if (res.status === 404) {
+                setError('Room not found. Please check the code and try again.');
+                setLoading(false);
+                return;
+            }
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to verify room');
+            }
+        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+            setError(e.message || 'Failed to verify room');
+            setLoading(false);
+            return;
+        }
+        setLoading(false);
 
-        // Set local state to prepare for naming
+        // Room exists - proceed to name entry
         setNamingMode(true);
         setIsSpectatorMode(isSpectator);
         setMode(null); // Clear previous mode menu

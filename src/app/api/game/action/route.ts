@@ -29,7 +29,11 @@ export async function POST(req: Request) {
             await gameStorage.deleteGame(roomId);
 
             // Broadcast party-ended event to all clients
-            await pusherServer.trigger(`room-${roomId}`, 'party-ended', { roomId });
+            try {
+                await pusherServer.trigger(`room-${roomId}`, 'party-ended', { roomId });
+            } catch (e) {
+                console.error('Pusher trigger failed:', e);
+            }
 
             return NextResponse.json({ success: true, ended: true });
         }
@@ -43,7 +47,11 @@ export async function POST(req: Request) {
 
         if (newState !== game) {
             await gameStorage.saveGame(roomId, newState);
-            await pusherServer.trigger(`room-${roomId}`, 'game-update', newState);
+            try {
+                await pusherServer.trigger(`room-${roomId}`, 'game-update', newState);
+            } catch (e) {
+                console.error('Pusher trigger failed:', e);
+            }
         }
 
         return NextResponse.json({ success: true });

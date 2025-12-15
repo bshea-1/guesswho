@@ -50,8 +50,13 @@ export async function POST(req: Request) {
 
         await gameStorage.saveGame(roomId, newGame);
 
-        // Trigger Pusher update
-        await pusherServer.trigger(`room-${roomId}`, 'game-update', newGame);
+        // Trigger Pusher update (non-blocking - don't fail join if Pusher has issues)
+        try {
+            await pusherServer.trigger(`room-${roomId}`, 'game-update', newGame);
+        } catch (pusherError) {
+            console.error('Pusher trigger failed:', pusherError);
+            // Don't fail the join - client can poll for updates
+        }
 
         return NextResponse.json({ roomId, playerId });
     } catch (error) {
