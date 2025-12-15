@@ -82,7 +82,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
             console.error('Pusher subscription failed:', e);
         }
 
-        // Polling fallback - fetch game state every 2 seconds
+        // Polling fallback - fetch game state every 500ms for responsive gameplay
         // This ensures updates work even if Pusher fails
         const pollInterval = setInterval(async () => {
             try {
@@ -100,7 +100,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
             } catch (e) {
                 console.error('Poll failed:', e);
             }
-        }, 2000);
+        }, 500);
 
         return () => {
             if (pusher) {
