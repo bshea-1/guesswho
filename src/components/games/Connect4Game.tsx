@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { GameState, Player } from '@/lib/types';
 import { Connect4Board, ROWS, COLS } from '@/lib/games/connect4';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,9 +25,40 @@ export default function Connect4Game({
     // Determine my color (if active)
     const myColors = activePlayers.find(p => p.id === playerId)?.characterId; // 'red' or 'yellow'
 
+    // Track which cells have been animated to prevent re-animation on poll updates
+    const animatedCellsRef = useRef<Set<string>>(new Set());
+    const [animatedCells, setAnimatedCells] = useState<Set<string>>(new Set());
+
+    // Update animated cells when board changes
+    useEffect(() => {
+        const newAnimated = new Set(animatedCells);
+        let hasNewPiece = false;
+
+        for (let row = 0; row < ROWS; row++) {
+            for (let col = 0; col < COLS; col++) {
+                const cellKey = `${row}-${col}`;
+                if (board[row]?.[col] && !animatedCellsRef.current.has(cellKey)) {
+                    newAnimated.add(cellKey);
+                    animatedCellsRef.current.add(cellKey);
+                    hasNewPiece = true;
+                }
+            }
+        }
+
+        if (hasNewPiece) {
+            setAnimatedCells(newAnimated);
+        }
+    }, [board]);
+
     const handleColumnClick = (colIndex: number) => {
         if (!iamActive || !myTurn || game.matchStatus !== 'playing') return;
         sendAction('DROP_PIECE', colIndex);
+    };
+
+    // Check if a cell should animate (is new)
+    const shouldAnimate = (row: number, col: number): boolean => {
+        const cellKey = `${row}-${col}`;
+        return !animatedCells.has(cellKey);
     };
 
     return (
@@ -68,18 +100,27 @@ export default function Connect4Game({
 
                             {/* Rows (Top to Bottom) */}
                             {Array.from({ length: ROWS }).map((_, rowIndex) => {
-                                const cell = board[rowIndex][colIndex];
+                                const cell = board[rowIndex]?.[colIndex];
+                                const cellKey = `${rowIndex}-${colIndex}`;
+                                const isNew = shouldAnimate(rowIndex, colIndex);
+
                                 return (
                                     <div
-                                        key={`${rowIndex}-${colIndex}`}
+                                        key={cellKey}
                                         className="w-8 h-8 sm:w-16 sm:h-16 rounded-full bg-slate-900 shadow-inner flex items-center justify-center overflow-hidden"
                                     >
                                         <AnimatePresence>
                                             {cell && (
                                                 <motion.div
-                                                    initial={{ y: -300, opacity: 0 }}
+                                                    key={`piece-${cellKey}`}
+                                                    initial={isNew ? { y: -(rowIndex + 1) * 80, opacity: 0.8 } : { y: 0, opacity: 1 }}
                                                     animate={{ y: 0, opacity: 1 }}
-                                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                                                    transition={isNew ? {
+                                                        type: 'spring',
+                                                        damping: 12,
+                                                        stiffness: 200,
+                                                        delay: 0.05
+                                                    } : { duration: 0 }}
                                                     className={`w-full h-full rounded-full shadow-lg ${cell === 'red' ? 'bg-red-500' : 'bg-yellow-400'} border-4 ${cell === 'red' ? 'border-red-600' : 'border-yellow-500'}`}
                                                 />
                                             )}
@@ -106,4 +147,3 @@ export default function Connect4Game({
         </div>
     );
 }
-
