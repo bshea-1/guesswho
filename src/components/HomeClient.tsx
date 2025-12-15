@@ -20,6 +20,7 @@ export default function HomeClient() {
     const [isSpectatorMode, setIsSpectatorMode] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+    const [pendingAction, setPendingAction] = useState<'create' | null>(null);
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
@@ -65,15 +66,49 @@ export default function HomeClient() {
         setLoading(true);
         setError('');
 
+        // CASE 0: PENDING CREATION (New Flow)
+        if (pendingAction === 'create') {
+            setLoadingMessage('Creating Party...');
+            // Delay slightly for effect
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 750 + 500));
+
+            try {
+                const res = await fetch('/api/room/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hostName: localName, // Pass name directly
+                        mode: undefined,
+                        visibility
+                    }),
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                setPlayerId(data.playerId);
+                setRoomId(data.roomId);
+                setUsername(localName);
+
+                // Go to game
+                router.push(`/game/${data.roomId}`);
+            } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+                setError(e.message);
+                setLoading(false);
+            }
+            return;
+        }
+
         // CASE 1: NOT JOINED YET (New Join Flow)
         if (!playerId || !roomId) {
             setLoadingMessage('Joining Party...');
             // We need roomCode. If it came from URL param, it might not be in roomCode state variable?
             // Actually, if we are in namingMode from `handleJoin`, `roomCode` state is set.
-            // If we are here from `handleCreate`, `playerId` exists.
-            // What if `roomCode` param? 
-            // Let's check `roomCode` state.
-            const targetRoom = roomId || roomCode; // If we have roomId (create), use it. Else use input.
+            // If we are here from `handleCreate`, `playerId` exists. -> Not anymore in new flow!
+            // Wait, if pendingAction is null, we are in Join flow.
+
+            const targetRoom = roomId || roomCode; // If we have roomId (create - old flow fallback?), use it. Else use input.
+            // In new flow, roomId is null when joining.
 
             if (!targetRoom) {
                 setError("Missing Room Code");
@@ -85,7 +120,7 @@ export default function HomeClient() {
             return;
         }
 
-        // CASE 2: ALREADY JOINED (Created Room or Legacy/Rejoin)
+        // CASE 2: ALREADY JOINED (Legacy/Rejoin)
         setLoadingMessage('Joining Party...');
 
         try {
@@ -112,44 +147,11 @@ export default function HomeClient() {
     };
 
     const handleCreate = async () => {
-        setLoading(true);
-        setError('');
-        setLoadingMessage('Creating Party...');
-
-        // Random delay 0.5s - 1.25s (Halved)
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 750 + 500));
-
-        try {
-            // Create with default name first
-            const res = await fetch('/api/room/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    hostName: undefined, // Will default to 'Host'
-                    mode: undefined, // Mode removed
-
-                    visibility // Passed from state
-                }),
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-
-            // Successfully created room
-            setPlayerId(data.playerId);
-            setRoomId(data.roomId);
-
-            // Now prompt for name
-            setMode(null);
-            setNamingMode(true);
-            setIsSpectatorMode(false);
-            setLoading(false);
-            setLoadingMessage('');
-        } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-            setError(e.message);
-            setLoading(false);
-            setLoadingMessage('');
-        }
+        // Just trigger naming mode, defer creation
+        setPendingAction('create');
+        setNamingMode(true);
+        setMode(null);
+        setIsSpectatorMode(false);
     };
 
     const executeJoin = async (code: string, isSpectator: boolean, name?: string) => {
