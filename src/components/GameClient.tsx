@@ -38,41 +38,75 @@ export default function GameClient({ roomId }: { roomId: string }) {
         setRoomId(roomId);
 
         // Fetch initial state
-        fetch(`/api/game/${roomId}?playerId=${playerId || ''}`)
-            .then(res => {
+        const fetchGame = async () => {
+            try {
+                const res = await fetch(`/api/game/${roomId}?playerId=${playerId || ''}`);
                 if (res.status === 404) {
                     clearGame(); // Clear stale cache
                     router.push('/');
                     return null;
                 }
-                return res.json();
-            })
-            .then(data => {
+                const data = await res.json();
                 if (data && !data.error) {
                     setGame(data);
                     setLoading(false);
                 }
-            })
-            .catch(console.error);
+                return data;
+            } catch (e) {
+                console.error('Failed to fetch game:', e);
+                return null;
+            }
+        };
+
+        fetchGame();
 
         // Subscribe to Pusher
-        const pusher = getPusherClient();
-        const channel = pusher.subscribe(`room-${roomId}`);
+        let pusher: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+        let channel: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+        try {
+            pusher = getPusherClient();
+            channel = pusher.subscribe(`room-${roomId}`);
 
-        channel.bind('game-update', (newGameState: GameState) => {
-            console.log('Received game update', newGameState);
-            setGame(newGameState);
-        });
+            channel.bind('game-update', (newGameState: GameState) => {
+                console.log('Received game update via Pusher', newGameState);
+                setGame(newGameState);
+            });
 
-        // Listen for party ended event
-        channel.bind('party-ended', () => {
-            console.log('Party ended by host');
-            clearGame();
-            router.push('/');
-        });
+            // Listen for party ended event
+            channel.bind('party-ended', () => {
+                console.log('Party ended by host');
+                clearGame();
+                router.push('/');
+            });
+        } catch (e) {
+            console.error('Pusher subscription failed:', e);
+        }
+
+        // Polling fallback - fetch game state every 2 seconds
+        // This ensures updates work even if Pusher fails
+        const pollInterval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/game/${roomId}?playerId=${playerId || ''}`);
+                if (res.status === 404) {
+                    // Game was deleted (party ended)
+                    clearGame();
+                    router.push('/');
+                    return;
+                }
+                const data = await res.json();
+                if (data && !data.error) {
+                    setGame(data);
+                }
+            } catch (e) {
+                console.error('Poll failed:', e);
+            }
+        }, 2000);
 
         return () => {
-            pusher.unsubscribe(`room-${roomId}`);
+            if (pusher) {
+                pusher.unsubscribe(`room-${roomId}`);
+            }
+            clearInterval(pollInterval);
         };
     }, [roomId, playerId, router, setGame, setRoomId, clearGame]);
 
