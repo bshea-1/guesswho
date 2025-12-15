@@ -19,6 +19,7 @@ export default function HomeClient() {
     const [namingMode, setNamingMode] = useState(false); // New state for name entry step
     const [isSpectatorMode, setIsSpectatorMode] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
+    const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
@@ -126,7 +127,8 @@ export default function HomeClient() {
                 body: JSON.stringify({
                     hostName: undefined, // Will default to 'Host'
                     mode: undefined, // Mode removed
-                    visibility: 'public' // Default
+
+                    visibility // Passed from state
                 }),
             });
 
@@ -366,6 +368,21 @@ export default function HomeClient() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-3 pt-4">
+
+                                    <div className="flex bg-slate-800 p-1 rounded-lg mb-2">
+                                        <button
+                                            onClick={() => setVisibility('public')}
+                                            className={`flex-1 py-2 text-sm font-bold rounded-md transition ${visibility === 'public' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            Public
+                                        </button>
+                                        <button
+                                            onClick={() => setVisibility('private')}
+                                            className={`flex-1 py-2 text-sm font-bold rounded-md transition ${visibility === 'private' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            Private
+                                        </button>
+                                    </div>
                                     <button onClick={handleCreate} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition">
                                         <Plus size={20} /> Create Room
                                     </button>
