@@ -86,6 +86,10 @@ function startConnect4Match(state: GameState, p1Id: string, p2Id: string): GameS
         };
     });
 
+    if (!resetPlayers[p1Id] || !resetPlayers[p2Id]) {
+        throw new Error(`Invalid players for match: ${p1Id}, ${p2Id}`);
+    }
+
     // P1 = Red, P2 = Yellow
     resetPlayers[p1Id].role = 'player';
     resetPlayers[p1Id].characterId = 'red';
@@ -133,6 +137,10 @@ function startMonopolyMatch(state: GameState, p1Id: string, p2Id: string): GameS
             data: null
         };
     });
+
+    if (!resetPlayers[p1Id] || !resetPlayers[p2Id]) {
+        throw new Error(`Invalid players for Monopoly match: ${p1Id}, ${p2Id}`);
+    }
 
     // P1
     resetPlayers[p1Id].role = 'player';

@@ -56,6 +56,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ roomId, playerId });
     } catch (error) {
         console.error('Join Room Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: `Internal Server Error: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
     }
 }
