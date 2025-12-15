@@ -450,19 +450,11 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         } else {
             return {
                 ...state,
-                matchStatus: 'finished',
-                winnerId: opponentId,
-                players: {
-                    ...state.players,
-                    [opponentId]: {
-                        ...state.players[opponentId],
-                        wins: (state.players[opponentId].wins || 0) + 1
-                    }
-                },
+                turnPlayerId: opponentId,
                 history: [...state.history, {
                     playerId: 'system',
-                    action: 'GAME_OVER',
-                    content: `${state.players[playerId]?.name} guessed ${guessedChar.name} incorrectly. It was ${opponentCharName} !`,
+                    action: 'info',
+                    content: `${state.players[playerId]?.name} guessed ${guessedChar.name} incorrectly. Turn passes to opponent.`,
                     timestamp: Date.now()
                 }],
             };

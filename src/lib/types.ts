@@ -24,7 +24,7 @@ export type ChatMessage = {
 
 export type Turn = {
     playerId: string;
-    action: 'ask' | 'guess' | 'answer' | 'join' | 'WIN' | 'GAME_OVER';
+    action: 'ask' | 'guess' | 'answer' | 'join' | 'WIN' | 'GAME_OVER' | 'info';
     content: string; // The question or the guess
     timestamp: number;
 };
