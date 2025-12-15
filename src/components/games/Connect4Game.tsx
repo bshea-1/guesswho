@@ -92,11 +92,7 @@ export default function Connect4Game({
                             onClick={() => handleColumnClick(colIndex)}
                         >
                             {/* Hover Indicator (Ghost Piece) */}
-                            {iamActive && myTurn && game.matchStatus === 'playing' && (
-                                <div className={`w-8 h-8 sm:w-16 sm:h-16 rounded-full mb-1 opacity-0 group-hover:opacity-50 transition-opacity mx-auto
-                                    ${myColors === 'red' ? 'bg-red-500' : 'bg-yellow-500'}
-                                `} />
-                            )}
+
 
                             {/* Rows (Top to Bottom) */}
                             {Array.from({ length: ROWS }).map((_, rowIndex) => {
@@ -113,12 +109,13 @@ export default function Connect4Game({
                                             {cell && (
                                                 <motion.div
                                                     key={`piece-${cellKey}`}
-                                                    initial={isNew ? { y: -(rowIndex + 1) * 80, opacity: 1 } : { y: 0, opacity: 1 }}
+                                                    initial={isNew ? { y: -(rowIndex + 1) * 85, opacity: 1 } : { y: 0, opacity: 1 }}
                                                     animate={{ y: 0, opacity: 1 }}
                                                     transition={isNew ? {
-                                                        type: 'tween',
-                                                        ease: [0.45, 0, 0.85, 0.5], // Custom ease-in for gravity effect
-                                                        duration: 0.3 + (rowIndex * 0.05) // Longer fall for lower rows
+                                                        type: 'spring',
+                                                        stiffness: 400,
+                                                        damping: 25,
+                                                        mass: 1
                                                     } : { duration: 0 }}
                                                     className={`w-full h-full rounded-full shadow-lg ${cell === 'red' ? 'bg-red-500' : 'bg-yellow-400'} border-4 ${cell === 'red' ? 'border-red-600' : 'border-yellow-500'}`}
                                                 />
