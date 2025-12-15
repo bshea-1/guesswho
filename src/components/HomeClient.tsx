@@ -255,8 +255,12 @@ export default function HomeClient() {
                                 <div className="inline-block p-3 rounded-full bg-green-500/20 text-green-400 mb-4">
                                     <Check size={32} />
                                 </div>
-                                <h2 className="text-2xl font-bold text-white">You&apos;re in!</h2>
-                                <p className="text-slate-400">Room: <span className="font-mono text-white">{roomId}</span></p>
+                                <h2 className="text-2xl font-bold text-white">
+                                    {pendingAction === 'create' ? 'One more thing...' : "You're in!"}
+                                </h2>
+                                <p className="text-slate-400">
+                                    {pendingAction === 'create' ? 'Enter your name to start the party' : <>Room: <span className="font-mono text-white">{roomId}</span></>}
+                                </p>
                             </div>
 
                             <div>
@@ -433,7 +437,7 @@ export default function HomeClient() {
             </motion.div>
 
             {/* Footer Credit */}
-            <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-slate-600 text-xs">
+            <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-slate-600 text-sm">
                 Site made by Brennan Shea
             </p>
         </div>
