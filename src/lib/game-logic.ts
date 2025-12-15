@@ -383,7 +383,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
 
         // Switch turn to opponent after asking
         const activeIds = Object.values(state.players)
-            .filter(p => p.role === 'player')
+            .filter(p => p.characterId)
             .map(p => p.id);
         const opponentId = activeIds.find(id => id !== playerId);
 
@@ -408,7 +408,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const guessInput = payload;
 
         const activeIds = Object.values(state.players)
-            .filter(p => p.role === 'player')
+            .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
             .map(p => p.id);
         const opponentId = activeIds.find(id => id !== playerId);
 
@@ -473,7 +473,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
 
         const activeIds = Object.values(state.players)
-            .filter(p => p.role === 'player')
+            .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
             .map(p => p.id);
         const opponentId = activeIds.find(id => id !== playerId);
 

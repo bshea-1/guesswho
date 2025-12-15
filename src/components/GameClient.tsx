@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
 import { GameState, Player, Turn } from '@/lib/types';
-import { Loader2, Copy, Check, Home, Crown, UserX, LogOut, Menu, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Loader2, Copy, Check, Home, Crown, UserX, LogOut, Menu, X } from 'lucide-react';
 import GameBoard from '@/components/GameBoard';
 import GameControls from '@/components/GameControls';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -331,7 +331,6 @@ export default function GameClient({ roomId }: { roomId: string }) {
     const [copied, setCopied] = useState(false);
     const [chatInput, setChatInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [questionsExpanded, setQuestionsExpanded] = useState(true);
 
     const copyRoomCode = () => {
         navigator.clipboard.writeText(roomId);
@@ -605,105 +604,41 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 {(() => {
                     const history = [...game.history];
                     const questions = history.filter(t => t.action === 'ask');
-
                     const latestQ = questions[questions.length - 1];
-                    const previousQ = questions[questions.length - 2];
+
+                    if (!latestQ) return null;
 
                     const getAnswerFor = (qTurn: Turn) => {
-                        // Find the first answer AFTER this question's index
                         const qIndex = history.indexOf(qTurn);
                         if (qIndex === -1) return null;
                         return history.slice(qIndex + 1).find(t => t.action === 'answer');
                     };
+                    const latestA = getAnswerFor(latestQ);
 
-                    const latestA = latestQ ? getAnswerFor(latestQ) : null;
-                    const previousA = previousQ ? getAnswerFor(previousQ) : null;
-
-                    const renderQABlock = (q: Turn, a: Turn | undefined | null, isCurrent: boolean) => {
-                        if (!q) return null;
-                        const isMyQ = q.playerId === playerId;
-                        const askerName = isMyQ ? 'You' : (game.players[q.playerId]?.name || 'Opponent');
-
-                        let answerColor = 'text-green-400';
-                        if (a?.content?.toLowerCase() === 'no') answerColor = 'text-red-400';
-                        if (a?.content?.toLowerCase() === 'yes') answerColor = 'text-green-400';
-
-                        return (
-                            <div className={`p-2 sm:p-3 backdrop-blur-sm border-b ${isCurrent ? 'bg-blue-900/30 border-blue-500/30' : 'bg-slate-900/40 border-slate-700/30'} flex flex-col gap-1 items-center animate-slide-in relative`}>
-                                <div className="flex items-center gap-2 text-[10px] sm:text-xs uppercase tracking-wider font-bold opacity-70">
-                                    <span className={isCurrent ? "text-blue-400" : "text-slate-500"}>
-                                        {isCurrent ? "New Question" : "Last Question"}
-                                    </span>
-                                </div>
-
-                                <div className="text-white font-medium italic text-center text-sm sm:text-base">
-                                    &quot;{q.content}&quot;
-                                </div>
-
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">
-                                        {askerName} Asked
-                                    </span>
-                                    {a ? (
-                                        <>
-                                            <span className="text-slate-600">•</span>
-                                            <span className={`text-[10px] ${answerColor} uppercase tracking-wider font-bold`}>
-                                                {a.playerId === playerId ? 'You' : (game.players[a.playerId]?.name || 'They')} Answered: {a.content}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="text-slate-600">•</span>
-                                            <span className="text-[10px] text-yellow-500/50 uppercase tracking-wider italic">
-                                                Waiting for answer...
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    };
-
-                    if (!latestQ && !previousQ) return null;
+                    const askerName = latestQ.playerId === playerId ? 'You' : (game.players[latestQ.playerId]?.name || 'Opponent');
+                    const answererName = latestA ? (latestA.playerId === playerId ? 'You' : (game.players[latestA.playerId]?.name || 'They')) : null;
 
                     return (
-                        <div className="flex flex-col shrink-0">
-                            {/* Toggle for history */}
-                            <button
-                                onClick={() => setQuestionsExpanded(!questionsExpanded)}
-                                className="w-full bg-slate-900/50 hover:bg-slate-800 text-xs text-slate-500 py-1 flex items-center justify-center gap-1 border-b border-white/5"
-                            >
-                                {questionsExpanded ? (
-                                    <> <ChevronUp size={12} /> Hide History</>
+                        <div className="p-3 bg-slate-900 border-b border-white/10 flex flex-col items-center justify-center text-center gap-1 shrink-0 z-30 shadow-md">
+                            <div className="text-sm sm:text-base font-medium text-white italic">
+                                "{latestQ.content}"
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                                <span className="uppercase tracking-wider font-bold text-blue-400">{askerName} asked</span>
+                                {latestA ? (
+                                    <>
+                                        <span>•</span>
+                                        <span className={`uppercase tracking-wider font-bold ${latestA.content.toLowerCase() === 'no' ? 'text-red-400' : 'text-green-400'}`}>
+                                            {answererName} answered: {latestA.content}
+                                        </span>
+                                    </>
                                 ) : (
-                                    <> <ChevronDown size={12} /> Show Q&A History</>
+                                    <>
+                                        <span>•</span>
+                                        <span className="italic opacity-50">Waiting for answer...</span>
+                                    </>
                                 )}
-                            </button>
-
-                            <AnimatePresence>
-                                {questionsExpanded && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        {previousQ && renderQABlock(previousQ, previousA, false)}
-                                        {latestQ && renderQABlock(latestQ, latestA, true)}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                            {/* If collapsed, show mini latest */}
-                            {!questionsExpanded && latestQ && (
-                                <div className="p-2 bg-blue-900/10 border-b border-blue-500/10 flex items-center justify-between text-xs px-4">
-                                    <span className="opacity-70 truncate italic max-w-[70%]">&quot;{latestQ.content}&quot;</span>
-                                    {latestA ? (
-                                        <span className={`font-bold ${latestA.content.toLowerCase() === 'no' ? 'text-red-400' : 'text-green-400'}`}>{latestA.content}</span>
-                                    ) : (
-                                        <span className="text-yellow-500/50 italic">Waiting...</span>
-                                    )}
-                                </div>
-                            )}
+                            </div>
                         </div>
                     );
                 })()}
