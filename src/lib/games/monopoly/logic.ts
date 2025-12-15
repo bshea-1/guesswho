@@ -1,4 +1,4 @@
-import { MONOPOLY_BOARD, BoardSpace } from './constants';
+import { MONOPOLY_BOARD, BoardSpace, PropertyGroup } from './constants';
 import { Player } from '@/lib/types';
 
 export interface MonopolyPlayerData {
@@ -8,6 +8,7 @@ export interface MonopolyPlayerData {
     inJail: boolean;
     jailTurns: number;
     color: string; // Token color
+    // Future: houses/hotels mapping { propertyId: count }
 }
 
 export const INITIAL_MONOPOLY_MONEY = 1500;
@@ -27,19 +28,42 @@ export function rollDice(): [number, number] {
     return [Math.ceil(Math.random() * 6), Math.ceil(Math.random() * 6)];
 }
 
-export function calculateRent(property: BoardSpace, diceRoll: number): number {
-    // Simplified rent calculation (ignores houses/ownership set bonus for now)
-    // TODO: Implement full rent logic (color sets, houses)
+export function getPropertiesInGroup(group: PropertyGroup): BoardSpace[] {
+    return MONOPOLY_BOARD.filter(s => s.group === group);
+}
+
+export function checkColorSetOwnership(gameState: any, playerId: string, group: PropertyGroup): boolean {
+    const groupProperties = getPropertiesInGroup(group);
+    const playerProps = gameState.players[playerId].data.properties;
+    return groupProperties.every(p => playerProps.includes(p.id));
+}
+
+export function calculateRent(property: BoardSpace, diceRoll: number, ownerId: string, gameState: any): number {
+    if (!property.rent) return 0;
+
+    // Utilities
     if (property.group === 'utility') {
-        return diceRoll * 4; // Basic utility rule
+        // Check if owner owns both
+        const hasBoth = checkColorSetOwnership(gameState, ownerId, 'utility');
+        return diceRoll * (hasBoth ? 10 : 4);
     }
+
+    // Stations
     if (property.group === 'station') {
-        return 25; // Base station rent (needs count logic)
+        const stationGroup = getPropertiesInGroup('station');
+        const ownerProps = gameState.players[ownerId].data.properties;
+        const stationsOwned = stationGroup.filter(s => ownerProps.includes(s.id)).length;
+        // 25, 50, 100, 200
+        return 25 * Math.pow(2, stationsOwned - 1);
     }
-    if (property.rent && property.rent.length > 0) {
-        return property.rent[0]; // Base rent
-    }
-    return 0;
+
+    // Standard Properties
+    // Check for Monopoly (all colors owned) implies double rent on unimproved lots
+    // housing logic would go here: if (houses > 0) return property.rent[houses];
+
+    const hasMonopoly = property.group ? checkColorSetOwnership(gameState, ownerId, property.group) : false;
+    // Assuming no houses for now, logic:
+    return property.rent[0] * (hasMonopoly ? 2 : 1);
 }
 
 export function getSpace(position: number): BoardSpace {

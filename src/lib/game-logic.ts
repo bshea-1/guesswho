@@ -13,7 +13,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'ROLL_DICE' | 'BUY_PROPERTY';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'ROLL_DICE' | 'BUY_PROPERTY' | 'PAY_JAIL_FINE';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -618,11 +618,17 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const activeIds = Object.values(state.players)
             .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
             .map(p => p.id);
-        const opponentId = activeIds.find(id => id !== playerId);
+
+        let nextPlayerId: string | undefined;
+        // Standard round-robin for >2 players, or toggle for 2 players
+        const currentIndex = activeIds.indexOf(playerId);
+        if (currentIndex >= 0) {
+            nextPlayerId = activeIds[(currentIndex + 1) % activeIds.length];
+        }
 
         return {
             ...state,
-            turnPlayerId: opponentId || null,
+            turnPlayerId: nextPlayerId ?? null,
         };
     }
 
@@ -718,38 +724,135 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
 
         const player = state.players[playerId];
+
+        // Check if already rolled this turn (unless doubles, logic allows rolling again but we need to track that status)
+        // For MVP, simple turn based: Roll -> Move -> End Turn.
+        // We need a flag "hasRolled" in player data or turn state? 
+        // Let's assume one roll per turn for now unless we add nuanced state.
+
+        if (player.data.inJail) {
+            // Jail Logic: Attempt to roll doubles
+            const [d1, d2] = rollDice();
+            const rollTotal = d1 + d2;
+            const isDoubles = d1 === d2;
+
+            if (isDoubles) {
+                // Free! Move normally
+                const newPlayers = { ...state.players };
+                newPlayers[playerId] = {
+                    ...player,
+                    data: { ...player.data, inJail: false, jailTurns: 0 }
+                };
+                // Recursive call or just fall through to move? 
+                // Let's just fall through to move logic by updating local variables
+                // Update state first to clear jail
+                state = { ...state, players: newPlayers };
+                // Continue to move logic below with these dice...
+            } else {
+                // Failed to roll doubles
+                const newPlayers = { ...state.players };
+                const newJailTurns = player.data.jailTurns + 1;
+
+                // Force pay if 3rd turn?
+                // For now, just stay in jail and end turn
+                newPlayers[playerId] = {
+                    ...player,
+                    data: { ...player.data, jailTurns: newJailTurns } // Increment turns
+                };
+
+                // If 3 turns, force pay 50 and move? (Impl later)
+
+                // Turn ends automatically or user must click End Turn?
+                // Let's auto-end turn for simple UX in jail fail
+
+                // Next player
+                const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
+                const opponentId = activeIds.find(id => id !== playerId);
+
+                return {
+                    ...state,
+                    players: newPlayers,
+                    turnPlayerId: opponentId || null,
+                    history: [...state.history, { playerId, action: 'info', content: `${player.name} rolled ${d1}-${d2} (No Doubles). Stays in Jail.`, timestamp: Date.now() }]
+                };
+            }
+        }
+
         const [d1, d2] = rollDice();
         const rollTotal = d1 + d2;
-        const newPos = (player.data.position + rollTotal) % MONOPOLY_BOARD.length;
+        const isDoubles = d1 === d2;
 
+        // Calculate new position
+        let newPos = player.data.position + rollTotal;
+        let passGoMoney = 0;
+
+        if (newPos >= MONOPOLY_BOARD.length) {
+            newPos = newPos % MONOPOLY_BOARD.length;
+            passGoMoney = 200;
+        }
+
+        // Create new player object with basic updates
         const newPlayers = { ...state.players };
         newPlayers[playerId] = {
             ...player,
             data: {
                 ...player.data,
                 position: newPos,
-                lastRoll: [d1, d2]
+                lastRoll: [d1, d2],
+                money: player.data.money + passGoMoney
             }
         };
 
         let historyContent = `${player.name} rolled ${d1} + ${d2} = ${rollTotal}. Landed on ${getSpace(newPos).name}.`;
+        if (passGoMoney > 0) historyContent += ` Passed Go (+$200).`;
 
-        // Rent Logic
+        // Handle Space Logic
         const space = getSpace(newPos);
         const ownerId = state.board.ownership[space.id];
-        if (ownerId && ownerId !== playerId && space.group !== 'utility' && space.group !== 'station' && space.type === 'property') {
-            // Standard property rent
-            const rent = calculateRent(space, rollTotal);
-            newPlayers[playerId].data.money -= rent;
-            newPlayers[ownerId].data.money += rent;
-            historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
-        } else if (ownerId && ownerId !== playerId && (space.group === 'utility' || space.group === 'station')) {
-            // Utility/Station rent (simplified logic in calculateRent handles args but we pass rollTotal)
-            const rent = calculateRent(space, rollTotal);
+
+        // 1. Go To Jail
+        if (space.type === 'go-to-jail') {
+            newPlayers[playerId].data.position = 10; // Jail space
+            newPlayers[playerId].data.inJail = true;
+            historyContent += ` Sent to Jail!`;
+            // Immediately End Turn (Doubles don't count)
+            const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
+            const opponentId = activeIds.find(id => id !== playerId);
+
+            return {
+                ...state,
+                players: newPlayers,
+                turnPlayerId: opponentId,
+                history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
+            };
+        }
+
+        // 2. Taxes
+        if (space.type === 'tax') {
+            const taxAmount = space.price || 0; // 200 or 100
+            newPlayers[playerId].data.money -= taxAmount;
+            historyContent += ` Paid $${taxAmount} tax.`;
+        }
+
+        // 3. Rent
+        if (ownerId && ownerId !== playerId && space.type === 'property' && !state.board.mortgaged?.[space.id]) {
+            const rent = calculateRent(space, rollTotal, ownerId, state);
             newPlayers[playerId].data.money -= rent;
             newPlayers[ownerId].data.money += rent;
             historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
         }
+
+        // Check for doubles -> Roll Again?
+        // To simplify: If doubles, keep turn. If not, wait for END_TURN action or auto-end?
+        // Let's make it auto-end turn if NO doubles, and keep turn if doubles.
+        // BUT user needs to be able to BUY property if they land on it.
+        // So we CANNOT auto-switch turn if they can perform an action (Buy).
+
+        // Logic: 
+        // If Doubles: Update turnPlayerId = playerId (stay same).
+        // If No Doubles: Update turnPlayerId = playerId (stay same, wait for 'END_TURN').
+        // Wait, we need to enforce that they HAVE rolled. 
+        // We can check `lastRoll` timestamp? Or just trust the flow.
 
         return {
             ...state,
