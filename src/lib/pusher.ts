@@ -13,7 +13,12 @@ export const pusherServer = new PusherServer({
 // Client-side Pusher instance
 // Ensure singleton in client to avoid multiple connections
 export const getPusherClient = () => {
-    return new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+    const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    if (!key) {
+        console.error('Pusher Key is missing! Check NEXT_PUBLIC_PUSHER_KEY in environment variables.');
+        throw new Error('Pusher Key is missing');
+    }
+    return new PusherClient(key, {
         cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
 };
