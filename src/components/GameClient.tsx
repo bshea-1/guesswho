@@ -133,7 +133,7 @@ function GameSidebar({
     chatInput: string;
     setChatInput: (s: string) => void;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sendAction: (t: string, p: any) => void;
+    sendAction: (t: string, p: any) => Promise<any>;
     copyRoomCode: () => void;
     handleLeaveParty: () => void;
     iamHost: boolean;
@@ -155,9 +155,12 @@ function GameSidebar({
                     <div className="flex items-center gap-1 md:flex">
                         {iamHost && (
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     if (confirm('End this party? Everyone will be disconnected.')) {
-                                        sendAction('END_PARTY', null);
+                                        const res = await sendAction('END_PARTY', null);
+                                        if (res && res.success) {
+                                            handleLeaveParty();
+                                        }
                                     }
                                 }}
                                 className="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-900/30 transition"
@@ -387,7 +390,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
     }, [roomId, playerId, router, setGame, setRoomId, clearGame]);
 
     const sendAction = useCallback(async (type: string, payload: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        await fetch('/api/game/action', {
+        const res = await fetch('/api/game/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -397,6 +400,8 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 payload
             })
         });
+        const data = await res.json();
+        return data;
     }, [roomId, playerId]);
 
     // Auto-Queue Next Match

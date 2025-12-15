@@ -229,7 +229,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                                     className="bg-orange-900/30 border border-orange-600/50 rounded-xl p-3 sm:p-4 text-center h-[60px] flex flex-col justify-center items-center"
                                 >
                                     <p className="text-orange-400 font-bold text-sm sm:text-base">Click on a character above to make your guess!</p>
-                                    <p className="text-orange-400/70 text-xs sm:text-sm mt-1">Choose wisely - wrong guesses lose the game!</p>
+                                    <p className="text-orange-400/70 text-xs sm:text-sm mt-1">Choose wisely - wrong guesses lose your turn!</p>
                                 </motion.div>
                             )}
                         </AnimatePresence>

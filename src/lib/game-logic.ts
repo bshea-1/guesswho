@@ -237,17 +237,26 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             // Auto Mode: Winner vs Queue
             const winnerId = state.winnerId;
 
-            // 1. Identify Loser and Rotate to Queue
-            if (winnerId && state.matchStatus === 'finished') {
+            // 1. Identify Loser/Active Players and Rotate to Queue
+            if (state.matchStatus === 'finished') {
                 const activeIds = Object.values(state.players)
                     .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
                     .map(p => p.id);
-                // The loser is the active player who is NOT the winner
-                const loserId = activeIds.find(id => id !== winnerId);
 
-                // Add loser to queue if they exist and aren't already there
-                if (loserId && !currentQueue.includes(loserId)) {
-                    currentQueue.push(loserId);
+                if (winnerId) {
+                    // Standard Case: Winner stays, Loser rotates
+                    const loserId = activeIds.find(id => id !== winnerId);
+                    if (loserId && !currentQueue.includes(loserId)) {
+                        currentQueue.push(loserId);
+                    }
+                } else {
+                    // Force End / No Winner Case: Everyone rotates to back of queue
+                    // This ensures the queue is populated for valid selection below
+                    activeIds.forEach(id => {
+                        if (!currentQueue.includes(id)) {
+                            currentQueue.push(id);
+                        }
+                    });
                 }
             }
 
