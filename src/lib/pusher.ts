@@ -3,10 +3,10 @@ import PusherClient from 'pusher-js';
 
 // Server-side Pusher instance
 export const pusherServer = new PusherServer({
-    appId: process.env.PUSHER_APP_ID!,
-    key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-    secret: process.env.PUSHER_SECRET!,
-    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    appId: process.env.PUSHER_APP_ID || '1910777',
+    key: process.env.NEXT_PUBLIC_PUSHER_KEY || 'da0647c093122c4f6974',
+    secret: process.env.PUSHER_SECRET || '58d976378411c801e05a',
+    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
     useTLS: true,
 });
 
