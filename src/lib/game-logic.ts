@@ -822,7 +822,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             return {
                 ...state,
                 players: newPlayers,
-                turnPlayerId: opponentId,
+                turnPlayerId: opponentId || null,
                 history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
             };
         }
