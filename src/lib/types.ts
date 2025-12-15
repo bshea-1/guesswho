@@ -40,6 +40,17 @@ export type GameState = {
     players: Record<string, Player>; // All participants (Host, Players, Spectators)
     queue: string[]; // IDs of players waiting to play
     board: any; // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+    // Monopoly Specific State
+    auction?: {
+        propertyId: number;
+        currentBid: number;
+        highBidderId: string | null;
+        activeBidders: string[]; // List of players still in the auction
+        timerStart?: number; // For timeouts (optional MVP)
+    } | null;
+    monopolyStatus?: 'waiting_for_roll' | 'waiting_for_decision' | 'auction' | 'jail_decision';
+
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];
     status: GameStatus; // Party Status

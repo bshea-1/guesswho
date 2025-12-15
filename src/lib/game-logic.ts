@@ -13,7 +13,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'ROLL_DICE' | 'BUY_PROPERTY' | 'PAY_JAIL_FINE';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'ROLL_DICE' | 'BUY_PROPERTY' | 'PAY_JAIL_FINE' | 'PASS_PROPERTY' | 'PLACE_BID' | 'WITHDRAW_AUCTION';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -725,54 +725,37 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
 
         const player = state.players[playerId];
 
-        // Check if already rolled this turn (unless doubles, logic allows rolling again but we need to track that status)
-        // For MVP, simple turn based: Roll -> Move -> End Turn.
-        // We need a flag "hasRolled" in player data or turn state? 
-        // Let's assume one roll per turn for now unless we add nuanced state.
-
+        // Jail Check (Simple MVP: if in jail, try roll doubles to get out, else stay)
         if (player.data.inJail) {
-            // Jail Logic: Attempt to roll doubles
             const [d1, d2] = rollDice();
-            const rollTotal = d1 + d2;
             const isDoubles = d1 === d2;
 
             if (isDoubles) {
-                // Free! Move normally
+                // Free!
                 const newPlayers = { ...state.players };
                 newPlayers[playerId] = {
                     ...player,
                     data: { ...player.data, inJail: false, jailTurns: 0 }
                 };
-                // Recursive call or just fall through to move? 
-                // Let's just fall through to move logic by updating local variables
-                // Update state first to clear jail
                 state = { ...state, players: newPlayers };
-                // Continue to move logic below with these dice...
+                // Continue to move...
             } else {
-                // Failed to roll doubles
                 const newPlayers = { ...state.players };
                 const newJailTurns = player.data.jailTurns + 1;
+                newPlayers[playerId] = { ...player, data: { ...player.data, jailTurns: newJailTurns } };
 
-                // Force pay if 3rd turn?
-                // For now, just stay in jail and end turn
-                newPlayers[playerId] = {
-                    ...player,
-                    data: { ...player.data, jailTurns: newJailTurns } // Increment turns
-                };
-
-                // If 3 turns, force pay 50 and move? (Impl later)
-
-                // Turn ends automatically or user must click End Turn?
-                // Let's auto-end turn for simple UX in jail fail
-
-                // Next player
+                // Auto-End Turn
                 const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-                const opponentId = activeIds.find(id => id !== playerId);
+                const opponentId = activeIds.find(id => id !== playerId); // Simple 2 player turn swap logic for now
+                // Better turn cycle:
+                const currentIndex = activeIds.indexOf(playerId);
+                let nextTurnId = null;
+                if (currentIndex >= 0) nextTurnId = activeIds[(currentIndex + 1) % activeIds.length];
 
                 return {
                     ...state,
                     players: newPlayers,
-                    turnPlayerId: opponentId || null,
+                    turnPlayerId: nextTurnId,
                     history: [...state.history, { playerId, action: 'info', content: `${player.name} rolled ${d1}-${d2} (No Doubles). Stays in Jail.`, timestamp: Date.now() }]
                 };
             }
@@ -782,16 +765,13 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const rollTotal = d1 + d2;
         const isDoubles = d1 === d2;
 
-        // Calculate new position
         let newPos = player.data.position + rollTotal;
         let passGoMoney = 0;
-
         if (newPos >= MONOPOLY_BOARD.length) {
             newPos = newPos % MONOPOLY_BOARD.length;
             passGoMoney = 200;
         }
 
-        // Create new player object with basic updates
         const newPlayers = { ...state.players };
         newPlayers[playerId] = {
             ...player,
@@ -806,30 +786,31 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         let historyContent = `${player.name} rolled ${d1} + ${d2} = ${rollTotal}. Landed on ${getSpace(newPos).name}.`;
         if (passGoMoney > 0) historyContent += ` Passed Go (+$200).`;
 
-        // Handle Space Logic
         const space = getSpace(newPos);
         const ownerId = state.board.ownership[space.id];
 
         // 1. Go To Jail
         if (space.type === 'go-to-jail') {
-            newPlayers[playerId].data.position = 10; // Jail space
+            newPlayers[playerId].data.position = 10;
             newPlayers[playerId].data.inJail = true;
             historyContent += ` Sent to Jail!`;
-            // Immediately End Turn (Doubles don't count)
+
             const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-            const opponentId = activeIds.find(id => id !== playerId);
+            const currentIndex = activeIds.indexOf(playerId);
+            let nextTurnId = null;
+            if (currentIndex >= 0) nextTurnId = activeIds[(currentIndex + 1) % activeIds.length];
 
             return {
                 ...state,
                 players: newPlayers,
-                turnPlayerId: opponentId || null,
+                turnPlayerId: nextTurnId,
                 history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
             };
         }
 
         // 2. Taxes
         if (space.type === 'tax') {
-            const taxAmount = space.price || 0; // 200 or 100
+            const taxAmount = space.price || 0;
             newPlayers[playerId].data.money -= taxAmount;
             historyContent += ` Paid $${taxAmount} tax.`;
         }
@@ -840,23 +821,40 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             newPlayers[playerId].data.money -= rent;
             newPlayers[ownerId].data.money += rent;
             historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
+        } else if (ownerId && ownerId !== playerId && (space.group === 'utility' || space.group === 'station')) {
+            const rent = calculateRent(space, rollTotal, ownerId, state);
+            newPlayers[playerId].data.money -= rent;
+            newPlayers[ownerId].data.money += rent;
+            historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
         }
 
-        // Check for doubles -> Roll Again?
-        // To simplify: If doubles, keep turn. If not, wait for END_TURN action or auto-end?
-        // Let's make it auto-end turn if NO doubles, and keep turn if doubles.
-        // BUT user needs to be able to BUY property if they land on it.
-        // So we CANNOT auto-switch turn if they can perform an action (Buy).
+        // Status Updates - Determine if we wait for decision or auto-end
+        let nextTurnPlayerId = state.turnPlayerId;
+        let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
 
-        // Logic: 
-        // If Doubles: Update turnPlayerId = playerId (stay same).
-        // If No Doubles: Update turnPlayerId = playerId (stay same, wait for 'END_TURN').
-        // Wait, we need to enforce that they HAVE rolled. 
-        // We can check `lastRoll` timestamp? Or just trust the flow.
+        const isUnownedProperty = space.type === 'property' && !ownerId && space.price;
+        if (isUnownedProperty) {
+            nextMonopolyStatus = 'waiting_for_decision';
+            historyContent += ` Decision required: Buy or Pass?`;
+        } else {
+            if (isDoubles) {
+                historyContent += ` Doubles! Roll again.`;
+                nextMonopolyStatus = 'waiting_for_roll';
+            } else {
+                const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
+                const currentIndex = activeIds.indexOf(playerId);
+                if (currentIndex >= 0) {
+                    nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
+                }
+                historyContent += ` Turn ended.`;
+            }
+        }
 
         return {
             ...state,
             players: newPlayers,
+            turnPlayerId: nextTurnPlayerId,
+            monopolyStatus: nextMonopolyStatus,
             history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
         };
     }
@@ -879,17 +877,158 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
 
         const newBoard = {
             ...state.board,
-            ownership: {
-                ...state.board.ownership,
-                [space.id]: playerId
-            }
+            ownership: { ...state.board.ownership, [space.id]: playerId }
         };
+
+        const [d1, d2] = player.data.lastRoll || [1, 2];
+        const isDoubles = d1 === d2;
+
+        let nextTurnPlayerId = state.turnPlayerId;
+        let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
+
+        let historyContent = `${player.name} bought ${space.name} for $${space.price}.`;
+
+        if (isDoubles) {
+            historyContent += ` Doubles! Roll again.`;
+        } else {
+            const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
+            const currentIndex = activeIds.indexOf(playerId);
+            if (currentIndex >= 0) {
+                nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
+            }
+            historyContent += ` Turn ended.`;
+        }
 
         return {
             ...state,
             players: newPlayers,
             board: newBoard,
-            history: [...state.history, { playerId, action: 'info', content: `${player.name} bought ${space.name} for $${space.price}.`, timestamp: Date.now() }]
+            turnPlayerId: nextTurnPlayerId,
+            monopolyStatus: nextMonopolyStatus,
+            history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
+        };
+    }
+
+    if (type === 'PASS_PROPERTY') {
+        if (state.gameType !== 'monopoly') throw new Error('Invalid game type');
+        if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
+
+        // Start Auction
+        const player = state.players[playerId];
+        const space = getSpace(player.data.position);
+
+        const activeIds = Object.values(state.players)
+            .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
+            .map(p => p.id);
+
+        return {
+            ...state,
+            monopolyStatus: 'auction',
+            auction: {
+                propertyId: space.id,
+                currentBid: 0,
+                highBidderId: null,
+                activeBidders: activeIds,
+                timerStart: Date.now()
+            },
+            history: [...state.history, { playerId, action: 'info', content: `${player.name} passed on ${space.name}. Auction started!`, timestamp: Date.now() }]
+        };
+    }
+
+    if (type === 'PLACE_BID') {
+        if (!state.auction) throw new Error('No auction active');
+        if (!state.auction.activeBidders.includes(playerId)) throw new Error('Not in auction');
+
+        const bidAmount = payload?.amount || (state.auction.currentBid + 10);
+        if (bidAmount <= state.auction.currentBid) throw new Error('Bid too low');
+        if (!canAfford(state.players[playerId].data, bidAmount)) throw new Error('Cannot afford bid');
+
+        return {
+            ...state,
+            auction: {
+                ...state.auction,
+                currentBid: bidAmount,
+                highBidderId: playerId,
+                timerStart: Date.now()
+            },
+            history: [...state.history, { playerId, action: 'info', content: `${state.players[playerId].name} bid $${bidAmount}.`, timestamp: Date.now() }]
+        };
+    }
+
+    if (type === 'WITHDRAW_AUCTION') {
+        if (!state.auction) return state;
+
+        const newActiveBidders = state.auction.activeBidders.filter(id => id !== playerId);
+        let historyContent = `${state.players[playerId].name} withdrew from auction.`;
+
+        // Check if only 1 left -> Winner
+        if (newActiveBidders.length === 1 && state.auction.highBidderId) {
+            const winnerId = state.auction.highBidderId;
+            // Only if High Bidder is the one left? 
+            // Actually, if everyone withdraws except one, that one wins at current price?
+            // If the last person is the high bidder, they win. 
+            // If the last person is NOT the high bidder (e.g. high bidder withdrew?), we have complexity.
+            // Simplified: High bidder can't withdraw? Or if they do, bid reset?
+            // Let's assume High Bidder stays implicitly until outbid.
+
+            // If newActiveBidders only contains winnerId
+            if (newActiveBidders.includes(winnerId)) {
+                // Winner!
+                const winner = state.players[winnerId];
+                const price = state.auction.currentBid;
+                const propId = state.auction.propertyId;
+                const space = getSpace(propId);
+
+                const newPlayers = { ...state.players };
+                newPlayers[winnerId].data.money -= price;
+                newPlayers[winnerId].data.properties.push(propId);
+
+                const newBoard = {
+                    ...state.board,
+                    ownership: { ...state.board.ownership, [propId]: winnerId }
+                };
+
+                historyContent += ` ${winner.name} wins auction for $${price}!`;
+
+                // End Auction and Resume Game
+                // Whose turn was it? state.turnPlayerId.
+                // We need to check Doubles for them to see if their turn continues.
+                const turnPlayer = state.players[state.turnPlayerId || ''];
+                const [d1, d2] = turnPlayer?.data.lastRoll || [1, 2];
+                const isDoubles = d1 === d2;
+
+                let nextTurnPlayerId = state.turnPlayerId;
+                let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
+
+                if (!isDoubles) {
+                    // Next player
+                    const activeIds = Object.values(state.players)
+                        .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
+                        .map(p => p.id);
+                    const currentIndex = activeIds.indexOf(state.turnPlayerId || '');
+                    if (currentIndex >= 0) {
+                        nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
+                    }
+                } else {
+                    historyContent += ` ${turnPlayer.name}'s turn continues (Doubles).`;
+                }
+
+                return {
+                    ...state,
+                    players: newPlayers,
+                    board: newBoard,
+                    auction: null,
+                    monopolyStatus: nextMonopolyStatus,
+                    turnPlayerId: nextTurnPlayerId,
+                    history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
+                };
+            }
+        }
+
+        return {
+            ...state,
+            auction: { ...state.auction, activeBidders: newActiveBidders },
+            history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
         };
     }
 
