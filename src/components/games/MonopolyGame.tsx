@@ -113,60 +113,86 @@ export default function MonopolyGame({
                             </div>
                         )}
 
-                        {/* Control Panel Logic */}
-                        {game.monopolyStatus === 'waiting_for_decision' && myTurn && (
-                            <div className="flex flex-col gap-4 animate-fade-in">
-                                <div className="text-white text-xl font-bold mb-2">Buy {getSpace(game.players[playerId].data.position).name}?</div>
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={() => sendAction('BUY_PROPERTY', null)}
-                                        className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transform transition hover:scale-105"
-                                    >
-                                        BUY (${getSpace(game.players[playerId].data.position).price})
-                                    </button>
-                                    <button
-                                        onClick={() => sendAction('PASS_PROPERTY', null)}
-                                        className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transform transition hover:scale-105"
-                                    >
-                                        PASS (Auction)
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        {/* Control Panel Overlay - Centered on Board */}
+                        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center justify-center pointer-events-none px-4">
+                            {/* Buy/Pass Decision */}
+                            {game.monopolyStatus === 'waiting_for_decision' && myTurn && (
+                                <div className="bg-slate-900/90 border-2 border-yellow-500 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-6 animate-fade-in pointer-events-auto backdrop-blur-sm transform scale-110">
+                                    <div className="text-center">
+                                        <div className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-1">Opportunity</div>
+                                        <div className="text-white text-3xl font-black">{getSpace(game.players[playerId].data.position).name}</div>
+                                        <div className="text-green-400 text-2xl font-bold mt-1">${getSpace(game.players[playerId].data.position).price}</div>
+                                    </div>
 
-                        {game.monopolyStatus === 'auction' && game.auction && (
-                            <div className="flex flex-col gap-2 w-full max-w-sm bg-black/40 p-4 rounded-xl animate-fade-in">
-                                <div className="text-yellow-400 font-bold text-lg uppercase tracking-widest text-center mb-2">Auction In Progress</div>
-                                <div className="text-white text-center mb-1">Property: <span className="font-bold">{getSpace(game.auction.propertyId).name}</span></div>
-                                <div className="text-green-400 text-3xl font-black text-center mb-4">${game.auction.currentBid}</div>
-                                <div className="text-slate-300 text-xs text-center mb-4">High Bidder: {game.players[game.auction.highBidderId || '']?.name || 'None'}</div>
-
-                                {game.auction.activeBidders.includes(playerId) ? (
-                                    <div className="flex gap-2 justify-center">
+                                    <div className="flex gap-4 w-full">
                                         <button
-                                            onClick={() => sendAction('PLACE_BID', { amount: game.auction!.currentBid + 10 })}
-                                            disabled={!canAfford(myData!, game.auction!.currentBid + 10)}
-                                            className="flex-1 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded shadow"
+                                            onClick={() => sendAction('BUY_PROPERTY', null)}
+                                            className="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-8 rounded-xl shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition text-xl"
                                         >
-                                            BID ${game.auction.currentBid + 10}
+                                            BUY
                                         </button>
                                         <button
-                                            onClick={() => sendAction('WITHDRAW_AUCTION', null)}
-                                            className="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded shadow"
+                                            onClick={() => sendAction('PASS_PROPERTY', null)}
+                                            className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-8 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition text-xl"
                                         >
-                                            Withdraw
+                                            PASS
                                         </button>
                                     </div>
-                                ) : (
-                                    <div className="text-red-400 text-center font-bold">You withdrew</div>
-                                )}
-                                <div className="mt-2 flex justify-center gap-1">
-                                    {game.auction.activeBidders.map(bidderId => (
-                                        <div key={bidderId} className={`w-2 h-2 rounded-full bg-${game.players[bidderId]?.data?.color}-500`} title={game.players[bidderId]?.name} />
-                                    ))}
                                 </div>
-                            </div>
-                        )}
+                            )}
+
+                            {/* Auction Overlay */}
+                            {game.monopolyStatus === 'auction' && game.auction && (
+                                <div className="bg-slate-900/95 border-2 border-yellow-500 rounded-xl p-6 shadow-2xl w-full max-w-md animate-fade-in pointer-events-auto backdrop-blur-sm">
+                                    <div className="text-yellow-400 font-bold text-xl uppercase tracking-widest text-center mb-4 border-b border-white/10 pb-2">Auction In Progress</div>
+
+                                    <div className="flex justify-between items-end mb-6">
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-400 text-xs uppercase">Property</span>
+                                            <span className="text-white font-bold text-xl">{getSpace(game.auction.propertyId).name}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-slate-400 text-xs uppercase">Current Bid</span>
+                                            <span className="text-green-400 font-black text-4xl">${game.auction.currentBid}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-black/30 rounded p-3 mb-6 text-center">
+                                        <span className="text-slate-400 text-xs">High Bidder: </span>
+                                        <span className="text-white font-bold text-lg">{game.players[game.auction.highBidderId || '']?.name || 'None'}</span>
+                                    </div>
+
+                                    {game.auction.activeBidders.includes(playerId) ? (
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => sendAction('PLACE_BID', { amount: game.auction!.currentBid + 10 })}
+                                                disabled={!canAfford(myData!, game.auction!.currentBid + 10)}
+                                                className="flex-2 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-lg border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 transition flex items-center justify-center gap-2"
+                                            >
+                                                <span>BID</span>
+                                                <span className="bg-black/20 px-2 rounded text-sm">${game.auction.currentBid + 10}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => sendAction('WITHDRAW_AUCTION', null)}
+                                                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 transition"
+                                            >
+                                                Withdraw
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="text-red-400 text-center font-bold bg-red-900/20 p-4 rounded-lg border border-red-500/30">
+                                            You have withdrawn from this auction.
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4 flex justify-center gap-2">
+                                        {game.auction.activeBidders.map(bidderId => (
+                                            <div key={bidderId} className={`w-3 h-3 rounded-full bg-${game.players[bidderId]?.data?.color}-500 shadow ring-1 ring-white/20`} title={game.players[bidderId]?.name} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {(game.monopolyStatus === 'waiting_for_roll' || !game.monopolyStatus) && myTurn && game.matchStatus === 'playing' && (
                             <div className="flex flex-col items-center animate-bounce-short">

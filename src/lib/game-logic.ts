@@ -835,19 +835,22 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const isUnownedProperty = space.type === 'property' && !ownerId && space.price;
         if (isUnownedProperty) {
             nextMonopolyStatus = 'waiting_for_decision';
-            historyContent += ` Decision required: Buy or Pass?`;
+            historyContent += ` Decision required.`;
         } else {
+            // STRICT TURN CYCLE: One roll per turn
+            // Even if doubles, we just move (and maybe get out of jail), but turn ends.
+            // This is a requested deviation/simplification.
+
             if (isDoubles) {
-                historyContent += ` Doubles! Roll again.`;
-                nextMonopolyStatus = 'waiting_for_roll';
-            } else {
-                const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-                const currentIndex = activeIds.indexOf(playerId);
-                if (currentIndex >= 0) {
-                    nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
-                }
-                historyContent += ` Turn ended.`;
+                historyContent += ` (Doubles!)`;
             }
+
+            const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
+            const currentIndex = activeIds.indexOf(playerId);
+            if (currentIndex >= 0) {
+                nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
+            }
+            historyContent += ` Turn ended.`;
         }
 
         return {
@@ -880,24 +883,20 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             ownership: { ...state.board.ownership, [space.id]: playerId }
         };
 
-        const [d1, d2] = player.data.lastRoll || [1, 2];
-        const isDoubles = d1 === d2;
-
         let nextTurnPlayerId = state.turnPlayerId;
         let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
 
         let historyContent = `${player.name} bought ${space.name} for $${space.price}.`;
 
-        if (isDoubles) {
-            historyContent += ` Doubles! Roll again.`;
-        } else {
-            const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-            const currentIndex = activeIds.indexOf(playerId);
-            if (currentIndex >= 0) {
-                nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
-            }
-            historyContent += ` Turn ended.`;
+        // Strict Turn Cycle: Buying ends turn
+        const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
+        const currentIndex = activeIds.indexOf(playerId);
+        if (currentIndex >= 0) {
+            nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
         }
+        if (!nextTurnPlayerId && activeIds.length > 0) nextTurnPlayerId = activeIds[0]; // Fallback to first player if null 
+
+        historyContent += ` Turn ended.`;
 
         return {
             ...state,
