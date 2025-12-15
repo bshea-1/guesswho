@@ -343,8 +343,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         return {
             ...state,
             matchStatus: 'finished',
-            winnerId: isHostAction ? null : (opponentId || null),
-            players: (opponentId && !isHostAction) ? {
+            winnerId: opponentId || null,
+            players: (opponentId) ? {
                 ...state.players,
                 [opponentId]: {
                     ...state.players[opponentId],
@@ -355,7 +355,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 playerId: 'system',
                 action: 'GAME_OVER',
                 content: isHostAction
-                    ? `Game ended by Host`
+                    ? `Game ended by Host. ${state.players[opponentId || '']?.name || 'Opponent'} wins!`
                     : `${state.players[playerId]?.name || 'Player'} forfeited the game`,
                 timestamp: Date.now()
             }],
