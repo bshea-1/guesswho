@@ -369,23 +369,25 @@ export default function HomeClient() {
                             ) : (
                                 <div className="grid grid-cols-1 gap-3 pt-4">
 
-                                    <div className="flex bg-slate-800 p-1 rounded-lg mb-2">
-                                        <button
-                                            onClick={() => setVisibility('public')}
-                                            className={`flex-1 py-2 text-sm font-bold rounded-md transition ${visibility === 'public' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                        >
-                                            Public
+                                    <div className="flex flex-col">
+                                        <button onClick={handleCreate} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-t-xl font-bold transition z-10 relative">
+                                            <Plus size={20} /> Create Room
                                         </button>
-                                        <button
-                                            onClick={() => setVisibility('private')}
-                                            className={`flex-1 py-2 text-sm font-bold rounded-md transition ${visibility === 'private' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                        >
-                                            Private
-                                        </button>
+                                        <div className="flex bg-slate-800 p-1 rounded-b-xl">
+                                            <button
+                                                onClick={() => setVisibility('public')}
+                                                className={`flex-1 py-2 text-sm font-bold rounded-md transition ${visibility === 'public' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                Public
+                                            </button>
+                                            <button
+                                                onClick={() => setVisibility('private')}
+                                                className={`flex-1 py-2 text-sm font-bold rounded-md transition ${visibility === 'private' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                Private
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button onClick={handleCreate} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-xl font-bold transition">
-                                        <Plus size={20} /> Create Room
-                                    </button>
                                     <div className="grid grid-cols-2 gap-3">
                                         <button onClick={() => setMode('join')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
                                             <Users size={20} /> Join
