@@ -51,13 +51,25 @@ export default function GameSidebar({
         }
     }, [game.chat, pendingMessages.length]);
 
+    // Tab state for chat
+    const [activeChatTab, setActiveChatTab] = useState<'party' | 'game'>(iamActive ? 'game' : 'party');
+
+    // Auto-switch to game chat when becoming active, if not already
+    useEffect(() => {
+        if (iamActive) {
+            setActiveChatTab('game');
+        } else {
+            setActiveChatTab('party');
+        }
+    }, [iamActive]);
+
     const displayedChat = [
         ...game.chat,
         ...pendingMessages
     ].filter(msg => {
-        const scope = msg.scope || 'party';
-        if (iamActive) return scope === 'game';
-        return scope === 'party';
+        // Filter by the selected tab
+        if (activeChatTab === 'game') return msg.scope === 'game';
+        return msg.scope === 'party' || !msg.scope; // Default to party if undefined
     });
 
     return (
@@ -148,7 +160,11 @@ export default function GameSidebar({
                                                     {game.turnPlayerId === p.id && <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
                                                     <div className="flex flex-col leading-tight">
                                                         <span className="font-medium text-white">{p.name}</span>
-                                                        <span className="text-[10px] text-slate-400">{p.wins || 0} Wins</span>
+                                                        <span className="text-xs text-slate-400">
+                                                            {game.gameType === 'connect-4' && p.characterId === 'red' && <span className="text-red-400 font-bold ml-1">(Red)</span>}
+                                                            {game.gameType === 'connect-4' && p.characterId === 'yellow' && <span className="text-yellow-400 font-bold ml-1">(Yellow)</span>}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-500">{p.wins || 0} Wins</span>
                                                     </div>
                                                 </div>
                                                 {iamHost && p.id !== playerId && (
@@ -227,16 +243,28 @@ export default function GameSidebar({
 
             {/* Chat Widget - Fixed Bottom Section */}
             <div className="h-[40%] bg-black/20 shrink-0 border-t border-white/10 flex flex-col min-h-0">
+                {/* Chat Tabs */}
                 <div className="flex border-b border-white/5 bg-slate-900/80 shrink-0">
-                    <div className={`flex-1 p-2 text-center text-xs font-bold cursor-default transition ${!iamActive ? 'text-yellow-400 bg-white/5' : 'text-slate-600 opacity-50'}`}>
+                    <button
+                        onClick={() => setActiveChatTab('party')}
+                        className={`flex-1 p-2 text-center text-xs font-bold cursor-pointer transition ${activeChatTab === 'party' ? 'text-yellow-400 bg-white/5 border-b-2 border-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
                         PARTY CHAT
-                    </div>
-                    <div className={`flex-1 p-2 text-center text-xs font-bold cursor-default transition ${iamActive ? 'text-green-400 bg-white/5' : 'text-slate-600 opacity-50'}`}>
+                    </button>
+                    <button
+                        onClick={() => setActiveChatTab('game')}
+                        className={`flex-1 p-2 text-center text-xs font-bold cursor-pointer transition ${activeChatTab === 'game' ? 'text-green-400 bg-white/5 border-b-2 border-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
                         GAME CHAT
-                    </div>
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                    {displayedChat.length === 0 && (
+                        <div className="text-slate-600 text-xs italic text-center mt-4">
+                            No messages in {activeChatTab} chat.
+                        </div>
+                    )}
                     {displayedChat.map((msg) => (
                         <div key={msg.id} className="text-sm break-words">
                             <span className={`font-bold text-xs mr-2 ${msg.scope === 'game' ? 'text-green-400' : 'text-slate-400'}`}>{game.players[msg.playerId]?.name || 'User'}:</span>
@@ -258,7 +286,7 @@ export default function GameSidebar({
                             playerId: playerId || 'me',
                             text: text,
                             timestamp: Date.now(),
-                            scope: iamActive ? 'game' : 'party',
+                            scope: activeChatTab,
                             temp: true
                         };
 
@@ -266,18 +294,36 @@ export default function GameSidebar({
                         setChatInput('');
 
                         try {
-                            await sendAction('CHAT', text);
+                            // We need to support passing scope to backend action?
+                            // Yes, the backend CHAT action supports 'scope' in payload.
+                            // But currently sendAction takes a string or object? 
+                            // The logic in GameClient.tsx wrapper is generic.
+                            // The processAction in game-logic.ts expects { text, scope } if payload is object?
+                            // Let's check logic:
+                            // if (type === 'CHAT') { const text = payload?.text ... }
+                            // Wait, the existing code:
+                            // sendAction('CHAT', text) -> payload is string.
+                            // processAction: const text = payload?.text; IF payload is object?
+                            // No, processAction checks payload?.text. If payload is just string "Hello", 
+                            // then payload.text is undefined.
+                            // Wait, look at GameClient.tsx:
+                            // sendAction('CHAT', text) sends payload as "text".
+                            // Look at game-logic.ts:
+                            // const text = payload?.text;
+                            // if payload is "Hello", payload.text is undefined!
+                            //
+                            // Actually, let's double check game-logic.ts from previous view.
+
+                            await sendAction('CHAT', { text, scope: activeChatTab });
                         } catch (e) {
                             console.error("Chat failed", e);
-                            // Remove optimistic message if failed? Or keep retry logic? 
-                            // For now, let it be.
                         }
                     }}
                     className="p-2 border-t border-white/5 bg-slate-900/50 shrink-0"
                 >
                     <input
                         className="w-full bg-slate-800 text-white text-sm rounded px-2 py-2 outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder={iamActive ? "Message opponent..." : "Message party..."}
+                        placeholder={activeChatTab === 'game' ? "Message active players..." : "Message everyone..."}
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
                     />

@@ -76,7 +76,8 @@ export default function GameClient({ roomId }: { roomId: string }) {
             channel.bind('party-ended', () => {
                 console.log('Party ended by host');
                 clearGame();
-                router.push('/');
+                // Force hard reload/redirect to ensure state is clean
+                window.location.href = '/';
             });
         } catch (e) {
             console.error('Pusher subscription failed:', e);
@@ -90,7 +91,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 if (res.status === 404) {
                     // Game was deleted (party ended)
                     clearGame();
-                    router.push('/');
+                    window.location.href = '/';
                     return;
                 }
                 const data = await res.json();

@@ -99,17 +99,26 @@ export default function Connect4Game({
     return (
         <div className="flex-1 flex flex-col items-center justify-center p-4 relative bg-slate-900">
             {/* Status Header */}
-            <div className="mb-8 text-center">
+            <div className="mb-8 text-center bg-slate-800/50 p-4 rounded-xl border border-white/5 backdrop-blur-sm">
                 {game.matchStatus === 'playing' ? (
-                    <div className="text-2xl font-bold flex items-center gap-3">
-                        {game.turnPlayerId === playerId ? (
-                            <span className="text-green-400">YOUR TURN</span>
-                        ) : (
-                            <span className="text-yellow-400">
-                                Waiting for {game.players[game.turnPlayerId || '']?.name || 'Opponent'}
-                            </span>
+                    <div className="flex flex-col items-center gap-2">
+                        {/* My Color Indicator */}
+                        {iamActive && (
+                            <div className={`text-sm font-bold px-3 py-1 rounded-full border mb-2 ${myColors === 'red' ? 'bg-red-500/20 text-red-500 border-red-500/50' : 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50'}`}>
+                                YOU ARE {myColors === 'red' ? 'RED' : 'YELLOW'}
+                            </div>
                         )}
-                        <div className={`w-4 h-4 rounded-full ${game.turnPlayerId === playerId ? (myColors === 'red' ? 'bg-red-500' : 'bg-yellow-500') : 'bg-slate-500'}`} />
+
+                        <div className="text-2xl font-bold flex items-center gap-3">
+                            {game.turnPlayerId === playerId ? (
+                                <span className="text-green-400 animate-pulse">YOUR TURN</span>
+                            ) : (
+                                <span className="text-slate-300">
+                                    Waiting for {game.players[game.turnPlayerId || '']?.name || 'Opponent'}
+                                </span>
+                            )}
+                            <div className={`w-4 h-4 rounded-full ${game.turnPlayerId === playerId ? (myColors === 'red' ? 'bg-red-500' : 'bg-yellow-500') : (game.turnPlayerId ? (game.players[game.turnPlayerId]?.characterId === 'red' ? 'bg-red-500' : 'bg-yellow-500') : 'bg-slate-500')}`} />
+                        </div>
                     </div>
                 ) : (
                     <div className="text-xl text-slate-400">match {game.matchStatus}</div>
