@@ -46,6 +46,7 @@ export type GameState = {
     usedWords?: string[]; // Words already used this match
     turnStartTime?: number; // When current turn started (for timer)
     currentTimerDuration?: number; // Current timer in seconds
+    currentTyping?: string; // Real-time typing display
 
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];

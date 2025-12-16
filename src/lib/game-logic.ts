@@ -12,7 +12,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -848,6 +848,17 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 content: `💥 ${player.name} ran out of time! ${newLives > 0 ? `${newLives} lives left.` : 'ELIMINATED!'} New prompt: "${newPrompt}"`,
                 timestamp: Date.now()
             }]
+        };
+    }
+
+    // Update typing display in real-time
+    if (type === 'UPDATE_TYPING') {
+        if (state.gameType !== 'word-bomb') return state;
+        if (state.turnPlayerId !== playerId) return state; // Only current player can update
+
+        return {
+            ...state,
+            currentTyping: payload?.text || ''
         };
     }
 

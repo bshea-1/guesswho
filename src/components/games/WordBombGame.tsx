@@ -27,7 +27,9 @@ export default function WordBombGame({
     const [timeLeft, setTimeLeft] = useState(game.currentTimerDuration || INITIAL_TIMER);
     const [submitting, setSubmitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [timerExpiredSent, setTimerExpiredSent] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const myTurn = game.turnPlayerId === playerId;
     const prompt = game.wordBombPrompt || '';
@@ -35,7 +37,14 @@ export default function WordBombGame({
     const myLives = myData?.lives || 0;
     const isEliminated = myData?.isEliminated || false;
 
-    // Timer countdown
+    // Reset timer expired flag when turn changes
+    useEffect(() => {
+        setTimerExpiredSent(false);
+        setInputWord('');
+        setFeedback(null);
+    }, [game.turnPlayerId, game.turnStartTime]);
+
+    // Timer countdown - uses server timestamp for sync
     useEffect(() => {
         if (game.matchStatus !== 'playing') return;
 
@@ -47,8 +56,9 @@ export default function WordBombGame({
             const remaining = Math.max(0, duration - elapsed);
             setTimeLeft(remaining);
 
-            // If timer hits 0 and it's my turn, trigger expired
-            if (remaining <= 0 && myTurn && !isEliminated) {
+            // Only the current turn player triggers timer expired, and only once
+            if (remaining <= 0 && myTurn && !isEliminated && !timerExpiredSent) {
+                setTimerExpiredSent(true);
                 sendAction('TIMER_EXPIRED', null);
             }
         };
@@ -56,7 +66,7 @@ export default function WordBombGame({
         updateTimer();
         const interval = setInterval(updateTimer, 100);
         return () => clearInterval(interval);
-    }, [game.turnStartTime, game.currentTimerDuration, game.matchStatus, myTurn, isEliminated, sendAction]);
+    }, [game.turnStartTime, game.currentTimerDuration, game.matchStatus, myTurn, isEliminated, timerExpiredSent, sendAction]);
 
     // Focus input on my turn
     useEffect(() => {
@@ -72,6 +82,19 @@ export default function WordBombGame({
             return () => clearTimeout(timer);
         }
     }, [feedback]);
+
+    // Broadcast typing in real-time (debounced)
+    const handleInputChange = useCallback((value: string) => {
+        setInputWord(value.toUpperCase());
+
+        // Debounce the typing broadcast
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+            sendAction('UPDATE_TYPING', { text: value.toUpperCase() });
+        }, 50); // Send every 50ms max
+    }, [sendAction]);
 
     const validateWord = useCallback(async (word: string): Promise<boolean> => {
         try {
@@ -89,9 +112,13 @@ export default function WordBombGame({
         const word = inputWord.toLowerCase().trim();
         setSubmitting(true);
 
+        // Broadcast that we're checking the word
+        sendAction('UPDATE_TYPING', { text: `Checking "${word.toUpperCase()}"...` });
+
         // Check if word contains prompt
         if (!word.includes(prompt.toLowerCase())) {
             setFeedback({ type: 'error', message: `Must contain "${prompt}"!` });
+            sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - missing "${prompt}"` });
             setSubmitting(false);
             return;
         }
@@ -100,6 +127,7 @@ export default function WordBombGame({
         const isValid = await validateWord(word);
         if (!isValid) {
             setFeedback({ type: 'error', message: `"${word}" is not a valid word!` });
+            sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - not in dictionary` });
             setSubmitting(false);
             return;
         }
@@ -138,7 +166,7 @@ export default function WordBombGame({
                                     <Heart
                                         key={i}
                                         size={14}
-                                        className={i < pData.lives ? 'text-red-500 fill-red-500' : 'text-slate-600'}
+                                        className={i < (pData.lives ?? 3) ? 'text-red-500 fill-red-500' : 'text-slate-600'}
                                     />
                                 ))}
                             </div>
@@ -164,14 +192,14 @@ export default function WordBombGame({
                         </motion.div>
 
                         {/* Prompt */}
-                        <div className="text-center mb-8">
+                        <div className="text-center mb-6">
                             <div className="text-slate-400 text-sm uppercase tracking-wider mb-2">Type a word containing</div>
                             <div className="text-6xl sm:text-8xl font-black text-white bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
                                 {prompt}
                             </div>
                         </div>
 
-                        {/* Current Turn Indicator */}
+                        {/* Current Turn Indicator + Real-time Typing Display */}
                         <div className="mb-6 text-center">
                             {myTurn && !isEliminated ? (
                                 <div className="text-2xl font-bold text-green-400 animate-pulse">YOUR TURN!</div>
@@ -179,8 +207,19 @@ export default function WordBombGame({
                                 <div className="text-xl font-bold text-red-400">You're eliminated - spectating</div>
                             ) : (
                                 <div className="text-xl text-slate-400">
-                                    Waiting for <span className="text-yellow-400 font-bold">{currentPlayer?.name}</span>
+                                    <span className="text-yellow-400 font-bold">{currentPlayer?.name}</span> is typing...
                                 </div>
+                            )}
+
+                            {/* Show real-time typing from current player (visible to everyone) */}
+                            {!myTurn && game.currentTyping && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="mt-3 text-2xl font-mono text-white bg-slate-800 px-6 py-3 rounded-xl inline-block"
+                                >
+                                    {game.currentTyping || '...'}
+                                </motion.div>
                             )}
                         </div>
 
@@ -192,7 +231,7 @@ export default function WordBombGame({
                                         ref={inputRef}
                                         type="text"
                                         value={inputWord}
-                                        onChange={(e) => setInputWord(e.target.value.toUpperCase())}
+                                        onChange={(e) => handleInputChange(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                                         placeholder="Type a word..."
                                         disabled={submitting}
