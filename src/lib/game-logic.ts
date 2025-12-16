@@ -12,7 +12,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -804,20 +804,27 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
 
         if (remainingPlayers.length <= 1) {
             const winnerId = remainingPlayers[0]?.id || null;
-            newPlayers[winnerId!] = {
-                ...newPlayers[winnerId!],
-                wins: (newPlayers[winnerId!]?.wins || 0) + 1
-            };
+            if (winnerId && newPlayers[winnerId]) {
+                newPlayers[winnerId] = {
+                    ...newPlayers[winnerId],
+                    wins: (newPlayers[winnerId]?.wins || 0) + 1
+                };
+            }
+
+            // Start 15-second lobby for next round
+            // Winner is auto-joined
             return {
                 ...state,
                 players: newPlayers,
                 matchStatus: 'finished',
                 winnerId,
                 turnPlayerId: null,
+                lobbyCountdownStart: Date.now(),
+                joinedNextRound: winnerId ? [winnerId] : [],
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'WIN',
-                    content: `💥 ${player.name} ran out of time and lives! ${remainingPlayers[0]?.name || 'Nobody'} wins!`,
+                    content: `💥 ${player.name} ran out of time and lives! ${remainingPlayers[0]?.name || 'Nobody'} wins! Next round in 15 seconds...`,
                     timestamp: Date.now()
                 }]
             };
@@ -859,6 +866,79 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         return {
             ...state,
             currentTyping: payload?.text || ''
+        };
+    }
+
+    // Join next round during lobby
+    if (type === 'JOIN_NEXT_ROUND') {
+        if (state.gameType !== 'word-bomb') return state;
+        if (state.matchStatus !== 'finished') return state;
+
+        const currentJoined = state.joinedNextRound || [];
+        if (currentJoined.includes(playerId)) return state; // Already joined
+
+        return {
+            ...state,
+            joinedNextRound: [...currentJoined, playerId],
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `${state.players[playerId]?.name || 'Someone'} joined next round!`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // Start Word Bomb match with all joined players
+    if (type === 'START_WORD_BOMB_MATCH') {
+        if (state.gameType !== 'word-bomb') return state;
+        if (state.matchStatus !== 'finished') return state;
+
+        const joinedPlayers = state.joinedNextRound || [];
+        if (joinedPlayers.length < 2) return state; // Need at least 2 players
+
+        const newPlayers = { ...state.players };
+
+        // Reset everyone to spectator first
+        Object.keys(newPlayers).forEach(pid => {
+            newPlayers[pid] = {
+                ...newPlayers[pid],
+                role: 'spectator',
+                data: null
+            };
+        });
+
+        // Set joined players as active players
+        joinedPlayers.forEach(pid => {
+            if (newPlayers[pid]) {
+                newPlayers[pid].role = 'player';
+                newPlayers[pid].data = createInitialWordBombData();
+            }
+        });
+
+        const initialPrompt = getRandomPrompt();
+
+        return {
+            ...state,
+            players: newPlayers,
+            status: 'playing',
+            matchStatus: 'playing',
+            turnPlayerId: joinedPlayers[0],
+            winnerId: null,
+            board: null,
+            wordBombPrompt: initialPrompt,
+            usedWords: [],
+            turnStartTime: Date.now(),
+            currentTimerDuration: INITIAL_TIMER_SECONDS,
+            currentTyping: '',
+            lobbyCountdownStart: undefined,
+            joinedNextRound: undefined,
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `New round started with ${joinedPlayers.length} players! Prompt: "${initialPrompt}"`,
+                timestamp: Date.now()
+            }]
         };
     }
 

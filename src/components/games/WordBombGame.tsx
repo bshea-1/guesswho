@@ -3,9 +3,10 @@
 import { GameState, Player } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bomb, Heart, Send, AlertCircle, CheckCircle } from 'lucide-react';
+import { Bomb, Heart, Send, AlertCircle, CheckCircle, UserPlus, Users } from 'lucide-react';
 
 const INITIAL_TIMER = 15;
+const LOBBY_DURATION = 15;
 
 export default function WordBombGame({
     game,
@@ -28,6 +29,8 @@ export default function WordBombGame({
     const [submitting, setSubmitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [timerExpiredSent, setTimerExpiredSent] = useState(false);
+    const [lobbyTimeLeft, setLobbyTimeLeft] = useState(LOBBY_DURATION);
+    const [matchStarted, setMatchStarted] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -37,14 +40,25 @@ export default function WordBombGame({
     const myLives = myData?.lives || 0;
     const isEliminated = myData?.isEliminated || false;
 
-    // Reset timer expired flag when turn changes
+    const isInLobby = game.matchStatus === 'finished' && game.lobbyCountdownStart;
+    const joinedPlayers = game.joinedNextRound || [];
+    const hasJoined = joinedPlayers.includes(playerId);
+
+    // Reset states when turn changes
     useEffect(() => {
         setTimerExpiredSent(false);
         setInputWord('');
         setFeedback(null);
     }, [game.turnPlayerId, game.turnStartTime]);
 
-    // Timer countdown - uses server timestamp for sync
+    // Reset matchStarted when match status changes
+    useEffect(() => {
+        if (game.matchStatus === 'playing') {
+            setMatchStarted(false);
+        }
+    }, [game.matchStatus]);
+
+    // Game timer countdown
     useEffect(() => {
         if (game.matchStatus !== 'playing') return;
 
@@ -56,7 +70,6 @@ export default function WordBombGame({
             const remaining = Math.max(0, duration - elapsed);
             setTimeLeft(remaining);
 
-            // Only the current turn player triggers timer expired, and only once
             if (remaining <= 0 && myTurn && !isEliminated && !timerExpiredSent) {
                 setTimerExpiredSent(true);
                 sendAction('TIMER_EXPIRED', null);
@@ -68,6 +81,27 @@ export default function WordBombGame({
         return () => clearInterval(interval);
     }, [game.turnStartTime, game.currentTimerDuration, game.matchStatus, myTurn, isEliminated, timerExpiredSent, sendAction]);
 
+    // Lobby countdown
+    useEffect(() => {
+        if (!isInLobby || !game.lobbyCountdownStart) return;
+
+        const updateLobbyTimer = () => {
+            const elapsed = (Date.now() - game.lobbyCountdownStart!) / 1000;
+            const remaining = Math.max(0, LOBBY_DURATION - elapsed);
+            setLobbyTimeLeft(remaining);
+
+            // Auto-start when countdown ends and at least 2 players joined
+            if (remaining <= 0 && joinedPlayers.length >= 2 && !matchStarted) {
+                setMatchStarted(true);
+                sendAction('START_WORD_BOMB_MATCH', null);
+            }
+        };
+
+        updateLobbyTimer();
+        const interval = setInterval(updateLobbyTimer, 100);
+        return () => clearInterval(interval);
+    }, [isInLobby, game.lobbyCountdownStart, joinedPlayers.length, matchStarted, sendAction]);
+
     // Focus input on my turn
     useEffect(() => {
         if (myTurn && inputRef.current && !isEliminated) {
@@ -75,7 +109,7 @@ export default function WordBombGame({
         }
     }, [myTurn, isEliminated]);
 
-    // Clear feedback after a bit
+    // Clear feedback
     useEffect(() => {
         if (feedback) {
             const timer = setTimeout(() => setFeedback(null), 2000);
@@ -83,17 +117,15 @@ export default function WordBombGame({
         }
     }, [feedback]);
 
-    // Broadcast typing in real-time (debounced)
     const handleInputChange = useCallback((value: string) => {
         setInputWord(value.toUpperCase());
 
-        // Debounce the typing broadcast
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
         }
         typingTimeoutRef.current = setTimeout(() => {
             sendAction('UPDATE_TYPING', { text: value.toUpperCase() });
-        }, 50); // Send every 50ms max
+        }, 50);
     }, [sendAction]);
 
     const validateWord = useCallback(async (word: string): Promise<boolean> => {
@@ -102,7 +134,7 @@ export default function WordBombGame({
             const data = await res.json();
             return data.valid;
         } catch {
-            return true; // Be lenient on errors
+            return true;
         }
     }, []);
 
@@ -112,10 +144,8 @@ export default function WordBombGame({
         const word = inputWord.toLowerCase().trim();
         setSubmitting(true);
 
-        // Broadcast that we're checking the word
         sendAction('UPDATE_TYPING', { text: `Checking "${word.toUpperCase()}"...` });
 
-        // Check if word contains prompt
         if (!word.includes(prompt.toLowerCase())) {
             setFeedback({ type: 'error', message: `Must contain "${prompt}"!` });
             sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - missing "${prompt}"` });
@@ -123,7 +153,6 @@ export default function WordBombGame({
             return;
         }
 
-        // Validate with dictionary
         const isValid = await validateWord(word);
         if (!isValid) {
             setFeedback({ type: 'error', message: `"${word}" is not a valid word!` });
@@ -132,18 +161,72 @@ export default function WordBombGame({
             return;
         }
 
-        // Submit to server
         await sendAction('SUBMIT_WORD', { word });
         setInputWord('');
         setFeedback({ type: 'success', message: 'Word accepted!' });
         setSubmitting(false);
     }, [inputWord, submitting, myTurn, prompt, validateWord, sendAction]);
 
-    const currentPlayer = game.turnPlayerId ? game.players[game.turnPlayerId] : null;
+    const handleJoinNextRound = () => {
+        sendAction('JOIN_NEXT_ROUND', null);
+    };
 
-    // Calculate timer color based on urgency
+    const currentPlayer = game.turnPlayerId ? game.players[game.turnPlayerId] : null;
     const timerColor = timeLeft > 5 ? 'text-green-400' : timeLeft > 2 ? 'text-yellow-400' : 'text-red-500';
     const timerScale = timeLeft < 3 ? 'animate-pulse scale-110' : '';
+
+    // Lobby screen
+    if (isInLobby) {
+        return (
+            <div className="flex flex-col h-full bg-slate-950 text-white p-4 sm:p-6 overflow-hidden items-center justify-center">
+                <div className="text-center max-w-md">
+                    <div className="text-6xl mb-4">🏆</div>
+                    <div className="text-3xl font-bold text-yellow-400 mb-2">
+                        {game.players[game.winnerId || '']?.name} Wins!
+                    </div>
+
+                    <div className="mt-8 mb-6">
+                        <div className="text-slate-400 mb-2">Next round starts in</div>
+                        <div className="text-5xl font-black text-purple-400">
+                            {Math.ceil(lobbyTimeLeft)}s
+                        </div>
+                    </div>
+
+                    {!hasJoined ? (
+                        <button
+                            onClick={handleJoinNextRound}
+                            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-8 rounded-xl text-xl transition flex items-center justify-center gap-3"
+                        >
+                            <UserPlus size={24} />
+                            Join Next Round
+                        </button>
+                    ) : (
+                        <div className="bg-green-500/20 border border-green-500 text-green-400 py-4 px-8 rounded-xl text-xl font-bold flex items-center justify-center gap-3">
+                            <CheckCircle size={24} />
+                            You're In!
+                        </div>
+                    )}
+
+                    <div className="mt-6 p-4 bg-slate-800 rounded-xl">
+                        <div className="flex items-center gap-2 text-slate-400 mb-3">
+                            <Users size={18} />
+                            <span>Players Joining ({joinedPlayers.length})</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {joinedPlayers.map(pid => (
+                                <span key={pid} className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-sm font-medium">
+                                    {game.players[pid]?.name || 'Unknown'}
+                                </span>
+                            ))}
+                            {joinedPlayers.length < 2 && (
+                                <span className="text-slate-500 italic text-sm">Need at least 2 players...</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full bg-slate-950 text-white p-4 sm:p-6 overflow-hidden">
@@ -199,7 +282,7 @@ export default function WordBombGame({
                             </div>
                         </div>
 
-                        {/* Current Turn Indicator + Real-time Typing Display */}
+                        {/* Current Turn + Typing */}
                         <div className="mb-6 text-center">
                             {myTurn && !isEliminated ? (
                                 <div className="text-2xl font-bold text-green-400 animate-pulse">YOUR TURN!</div>
@@ -211,7 +294,6 @@ export default function WordBombGame({
                                 </div>
                             )}
 
-                            {/* Show real-time typing from current player (visible to everyone) */}
                             {!myTurn && game.currentTyping && (
                                 <motion.div
                                     initial={{ opacity: 0 }}
@@ -223,7 +305,7 @@ export default function WordBombGame({
                             )}
                         </div>
 
-                        {/* Input (only if my turn and not eliminated) */}
+                        {/* Input */}
                         {myTurn && !isEliminated && (
                             <div className="w-full max-w-md">
                                 <div className="flex gap-2">
@@ -246,7 +328,6 @@ export default function WordBombGame({
                                     </button>
                                 </div>
 
-                                {/* Feedback */}
                                 <AnimatePresence>
                                     {feedback && (
                                         <motion.div
@@ -263,7 +344,6 @@ export default function WordBombGame({
                             </div>
                         )}
 
-                        {/* My Lives */}
                         {iamActive && !isEliminated && (
                             <div className="mt-8 flex items-center gap-2 text-slate-400">
                                 <span>Your lives:</span>
@@ -279,14 +359,6 @@ export default function WordBombGame({
                             </div>
                         )}
                     </>
-                ) : game.matchStatus === 'finished' ? (
-                    <div className="text-center">
-                        <div className="text-4xl mb-4">🎉</div>
-                        <div className="text-3xl font-bold text-white mb-2">
-                            {game.winnerId === playerId ? 'YOU WIN!' : `${game.players[game.winnerId || '']?.name} Wins!`}
-                        </div>
-                        <div className="text-slate-400">Game Over</div>
-                    </div>
                 ) : (
                     <div className="text-center text-slate-400">Waiting for game to start...</div>
                 )}

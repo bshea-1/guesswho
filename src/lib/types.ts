@@ -47,6 +47,8 @@ export type GameState = {
     turnStartTime?: number; // When current turn started (for timer)
     currentTimerDuration?: number; // Current timer in seconds
     currentTyping?: string; // Real-time typing display
+    lobbyCountdownStart?: number; // When the 15-second lobby countdown started
+    joinedNextRound?: string[]; // Player IDs who clicked "Join Next Round"
 
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];
