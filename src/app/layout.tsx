@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Boredgames",
+  title: "Skibidi Games",
   description: "Play classic board games like Guess Who, Connect 4, and Monopoly online with friends!",
   icons: {
     icon: "/favicon.png",
