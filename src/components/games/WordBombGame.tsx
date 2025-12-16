@@ -125,7 +125,7 @@ export default function WordBombGame({
         }
         typingTimeoutRef.current = setTimeout(() => {
             sendAction('UPDATE_TYPING', { text: value.toUpperCase() });
-        }, 50);
+        }, 20);
     }, [sendAction]);
 
     const validateWord = useCallback(async (word: string): Promise<boolean> => {

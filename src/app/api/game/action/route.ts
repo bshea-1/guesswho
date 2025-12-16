@@ -46,11 +46,22 @@ export async function POST(req: Request) {
         }
 
         if (newState !== game) {
-            await gameStorage.saveGame(roomId, newState);
-            try {
-                await pusherServer.trigger(`room-${roomId}`, 'game-update', newState);
-            } catch (e) {
-                console.error('Pusher trigger failed:', e);
+            // Optimization: For high-frequency UPDATE_TYPING, skip DB persistence
+            // This massively reduces latency for real-time typing displays
+            if (type === 'UPDATE_TYPING') {
+                try {
+                    await pusherServer.trigger(`room-${roomId}`, 'game-update', newState);
+                } catch (e) {
+                    console.error('Pusher trigger failed:', e);
+                }
+            } else {
+                // For all other actions, persist to DB deeply
+                await gameStorage.saveGame(roomId, newState);
+                try {
+                    await pusherServer.trigger(`room-${roomId}`, 'game-update', newState);
+                } catch (e) {
+                    console.error('Pusher trigger failed:', e);
+                }
             }
         }
 
