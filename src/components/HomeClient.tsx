@@ -105,13 +105,10 @@ export default function HomeClient() {
         // CASE 1: NOT JOINED YET (New Join Flow)
         if (!playerId || !roomId) {
             setLoadingMessage('Joining Party...');
-            // We need roomCode. If it came from URL param, it might not be in roomCode state variable?
-            // Actually, if we are in namingMode from `handleJoin`, `roomCode` state is set.
-            // If we are here from `handleCreate`, `playerId` exists. -> Not anymore in new flow!
-            // Wait, if pendingAction is null, we are in Join flow.
 
-            const targetRoom = roomId || roomCode; // If we have roomId (create - old flow fallback?), use it. Else use input.
-            // In new flow, roomId is null when joining.
+            // Always use roomCode as source of truth for new joins
+            // roomId is cleared when user starts a new join flow
+            const targetRoom = roomCode;
 
             if (!targetRoom) {
                 setError("Missing Room Code");
@@ -204,11 +201,13 @@ export default function HomeClient() {
     const handleJoin = async (isSpectator: boolean = false) => {
         if (!roomCode.trim()) { setError('Room Code is required'); return; }
 
+        const codeToJoin = roomCode.trim().toUpperCase();
+
         // Validate room exists before asking for name
         setLoading(true);
         setError('');
         try {
-            const res = await fetch(`/api/game/${roomCode.trim().toUpperCase()}`);
+            const res = await fetch(`/api/game/${codeToJoin}`);
             if (res.status === 404) {
                 setError('Room not found. Please check the code and try again.');
                 setLoading(false);
@@ -225,7 +224,13 @@ export default function HomeClient() {
         }
         setLoading(false);
 
-        // Room exists - proceed to name entry
+        // Room exists - CLEAR any stale roomId from previous sessions
+        // and store the validated code
+        setRoomId(null as any); // Clear old roomId
+        setPlayerId(null as any); // Clear old playerId so we use JOIN flow
+        setRoomCode(codeToJoin); // Set the validated code
+
+        // Proceed to name entry
         setNamingMode(true);
         setIsSpectatorMode(isSpectator);
         setMode(null); // Clear previous mode menu
@@ -248,12 +253,38 @@ export default function HomeClient() {
         // Otherwise start join process (defaulting to player/standard join)
         // We only do this if we aren't already loading or in error state to prevent loops
         if (!loading && !error && !namingMode) {
-            setRoomCode(code); // Pre-fill code
-            setMode('join'); // Effectively we want to show... actually just go straight to naming? 
-            // If we go straight to naming, user might be confused.
-            // Let's set naming mode directly.
-            setNamingMode(true);
-            setIsSpectatorMode(false);
+            // Pre-fill code and trigger validation flow
+            setRoomCode(code);
+
+            // Validate room exists before going to naming mode
+            const validateAndProceed = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`/api/game/${code}`);
+                    if (res.status === 404) {
+                        setError('Room not found. Please check the link and try again.');
+                        setLoading(false);
+                        return;
+                    }
+                    if (!res.ok) {
+                        setError('Failed to verify room');
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Room valid - clear any stale session and proceed
+                    setRoomId(null as any);
+                    setPlayerId(null as any);
+                    setLoading(false);
+                    setNamingMode(true);
+                    setIsSpectatorMode(false);
+                } catch (e) {
+                    setError('Failed to connect to server');
+                    setLoading(false);
+                }
+            };
+
+            validateAndProceed();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, roomId, playerId]);
@@ -282,7 +313,7 @@ export default function HomeClient() {
                                     {pendingAction === 'create' ? 'One more thing...' : "You're in!"}
                                 </h2>
                                 <p className="text-slate-400">
-                                    {pendingAction === 'create' ? 'Enter your name to start the party' : <>Room: <span className="font-mono text-white">{roomId}</span></>}
+                                    {pendingAction === 'create' ? 'Enter your name to start the party' : <>Room: <span className="font-mono text-white">{roomCode}</span></>}
                                 </p>
                             </div>
 
