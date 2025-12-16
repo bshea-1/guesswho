@@ -54,3 +54,57 @@ export const MONOPOLY_BOARD: BoardSpace[] = [
     { id: 38, name: "Super Tax", type: 'tax', price: 100 },
     { id: 39, name: "Mayfair", type: 'property', group: 'dark-blue', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], houseCost: 200 }
 ];
+
+// Card effect types
+export type CardEffect =
+    | { type: 'collect'; amount: number }
+    | { type: 'pay'; amount: number }
+    | { type: 'move'; to: number }
+    | { type: 'move_relative'; spaces: number }
+    | { type: 'go_to_jail' }
+    | { type: 'get_out_of_jail' }
+    | { type: 'collect_from_each'; amount: number }
+    | { type: 'pay_each'; amount: number };
+
+export interface Card {
+    text: string;
+    effect: CardEffect;
+}
+
+export const CHANCE_CARDS: Card[] = [
+    { text: "Advance to Go. Collect $200.", effect: { type: 'move', to: 0 } },
+    { text: "Advance to Trafalgar Square.", effect: { type: 'move', to: 24 } },
+    { text: "Advance to Mayfair.", effect: { type: 'move', to: 39 } },
+    { text: "Advance to Pall Mall.", effect: { type: 'move', to: 11 } },
+    { text: "Advance to Kings Cross Station.", effect: { type: 'move', to: 5 } },
+    { text: "Bank pays you dividend of $50.", effect: { type: 'collect', amount: 50 } },
+    { text: "Get out of Jail free.", effect: { type: 'get_out_of_jail' } },
+    { text: "Go back 3 spaces.", effect: { type: 'move_relative', spaces: -3 } },
+    { text: "Go to Jail. Do not pass Go.", effect: { type: 'go_to_jail' } },
+    { text: "Pay poor tax of $15.", effect: { type: 'pay', amount: 15 } },
+    { text: "You have won a crossword competition. Collect $100.", effect: { type: 'collect', amount: 100 } },
+    { text: "Your building loan matures. Collect $150.", effect: { type: 'collect', amount: 150 } },
+    { text: "You are assessed for street repairs. Pay $40.", effect: { type: 'pay', amount: 40 } },
+    { text: "Speeding fine. Pay $15.", effect: { type: 'pay', amount: 15 } },
+    { text: "Take a trip to Marylebone Station.", effect: { type: 'move', to: 15 } },
+    { text: "You have been elected Chairman. Pay each player $50.", effect: { type: 'pay_each', amount: 50 } },
+];
+
+export const COMMUNITY_CHEST_CARDS: Card[] = [
+    { text: "Advance to Go. Collect $200.", effect: { type: 'move', to: 0 } },
+    { text: "Bank error in your favor. Collect $200.", effect: { type: 'collect', amount: 200 } },
+    { text: "Doctor's fees. Pay $50.", effect: { type: 'pay', amount: 50 } },
+    { text: "From sale of stock you get $50.", effect: { type: 'collect', amount: 50 } },
+    { text: "Get out of Jail free.", effect: { type: 'get_out_of_jail' } },
+    { text: "Go to Jail. Do not pass Go.", effect: { type: 'go_to_jail' } },
+    { text: "Grand Opera Night. Collect $50 from each player.", effect: { type: 'collect_from_each', amount: 50 } },
+    { text: "Holiday fund matures. Collect $100.", effect: { type: 'collect', amount: 100 } },
+    { text: "Income tax refund. Collect $20.", effect: { type: 'collect', amount: 20 } },
+    { text: "Life insurance matures. Collect $100.", effect: { type: 'collect', amount: 100 } },
+    { text: "Hospital fees. Pay $100.", effect: { type: 'pay', amount: 100 } },
+    { text: "School fees. Pay $50.", effect: { type: 'pay', amount: 50 } },
+    { text: "Receive $25 consultancy fee.", effect: { type: 'collect', amount: 25 } },
+    { text: "You inherit $100.", effect: { type: 'collect', amount: 100 } },
+    { text: "You have won second prize in a beauty contest. Collect $10.", effect: { type: 'collect', amount: 10 } },
+    { text: "It is your birthday. Collect $10 from each player.", effect: { type: 'collect_from_each', amount: 10 } },
+];

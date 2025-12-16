@@ -98,7 +98,7 @@ export default function MonopolyGame({
                 >
                     {/* Center Area (Control Panel) */}
                     <div className="col-start-2 col-end-11 row-start-2 row-end-11 bg-slate-800 flex flex-col items-center justify-center p-8 relative">
-                        <div className="absolute inset-0 bg-[url('https://i.imgur.com/example.png')] opacity-10 pointer-events-none"></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/50 to-slate-700/30 pointer-events-none"></div>
 
                         <h1 className="text-4xl sm:text-6xl font-black text-white tracking-wider mb-8 uppercase text-center transform -rotate-12 bg-red-600 px-4 py-1 shadow-lg">Monopoly</h1>
 
@@ -205,15 +205,6 @@ export default function MonopolyGame({
                                 <div className="mt-2 text-slate-400 text-sm">Auto-End Turn enabled</div>
                             </div>
                         )}
-
-                        {/* Console / History */}
-                        <div className="mt-8 w-full max-w-md h-32 bg-black/50 rounded p-2 overflow-y-auto font-mono text-xs text-green-400">
-                            {game.history.slice().reverse().map((h, i) => (
-                                <div key={i} className="mb-1">
-                                    <span className="opacity-50">[{new Date(h.timestamp).toLocaleTimeString()}]</span> {h.content}
-                                </div>
-                            ))}
-                        </div>
                     </div>
 
                     {/* Spaces */}
@@ -243,13 +234,19 @@ export default function MonopolyGame({
                                                             space.group === 'yellow' ? 'bg-[#FFFF00]' :
                                                                 space.group === 'green' ? 'bg-[#008000]' :
                                                                     space.group === 'dark-blue' ? 'bg-[#000080]' : 'bg-transparent'}
-                                    `}>
-                                        {/* Owner Indicator */}
-                                        {owner && (
-                                            <div className={`w-full h-full flex items-center justify-center font-bold text-white bg-black/30`}>
-                                                {owner.name.substring(0, 3)}
-                                            </div>
-                                        )}
+                                    `} />
+                                )}
+
+                                {/* Ownership House Marker */}
+                                {owner && space.type === 'property' && (
+                                    <div className={`absolute bottom-0.5 left-0.5 z-10 flex items-center justify-center
+                                        w-3 h-3 sm:w-5 sm:h-5 rounded-sm shadow-md border border-white/50
+                                        ${owner.data?.color === 'red' ? 'bg-red-600' :
+                                            owner.data?.color === 'blue' ? 'bg-blue-600' :
+                                                owner.data?.color === 'green' ? 'bg-green-600' :
+                                                    'bg-purple-600'}
+                                    `} title={`Owned by ${owner.name}`}>
+                                        <span className="text-[6px] sm:text-[8px] text-white font-bold">🏠</span>
                                     </div>
                                 )}
 

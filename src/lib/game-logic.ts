@@ -3,7 +3,7 @@ import { CHARACTERS } from './characters';
 import { sanitizeName } from './validation';
 import { createConnect4Board, dropPiece, checkConnect4Win, isBoardFull } from './games/connect4';
 import { createInitialMonopolyData, rollDice, getSpace, canAfford, calculateRent } from './games/monopoly/logic';
-import { MONOPOLY_BOARD } from './games/monopoly/constants';
+import { MONOPOLY_BOARD, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, Card, CardEffect } from './games/monopoly/constants';
 
 
 export function checkGuess(character: any, question: { category: string, value: any }): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -826,6 +826,65 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             newPlayers[playerId].data.money -= rent;
             newPlayers[ownerId].data.money += rent;
             historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
+        }
+
+        // 4. Chance / Community Chest
+        if (space.type === 'chance' || space.type === 'chest') {
+            const deck = space.type === 'chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
+            const card = deck[Math.floor(Math.random() * deck.length)];
+
+            historyContent += ` Drew ${space.type === 'chance' ? 'Chance' : 'Community Chest'}: "${card.text}"`;
+
+            const effect = card.effect;
+
+            switch (effect.type) {
+                case 'collect':
+                    newPlayers[playerId].data.money += effect.amount;
+                    break;
+                case 'pay':
+                    newPlayers[playerId].data.money -= effect.amount;
+                    break;
+                case 'move': {
+                    const destination = effect.to;
+                    // Check if passing Go
+                    if (destination < newPlayers[playerId].data.position && destination !== 10) {
+                        newPlayers[playerId].data.money += 200;
+                        historyContent += ` Passed Go (+$200).`;
+                    }
+                    newPlayers[playerId].data.position = destination;
+                    break;
+                }
+                case 'move_relative': {
+                    let newPosition = newPlayers[playerId].data.position + effect.spaces;
+                    if (newPosition < 0) newPosition = MONOPOLY_BOARD.length + newPosition;
+                    newPlayers[playerId].data.position = newPosition;
+                    break;
+                }
+                case 'go_to_jail':
+                    newPlayers[playerId].data.position = 10;
+                    newPlayers[playerId].data.inJail = true;
+                    break;
+                case 'get_out_of_jail':
+                    // Store as a "Get Out of Jail Free" card
+                    newPlayers[playerId].data.hasGetOutOfJailCard = true;
+                    break;
+                case 'collect_from_each': {
+                    const otherPlayers = Object.values(newPlayers).filter(p => p.id !== playerId && p.role === 'player');
+                    for (const other of otherPlayers) {
+                        newPlayers[other.id].data.money -= effect.amount;
+                        newPlayers[playerId].data.money += effect.amount;
+                    }
+                    break;
+                }
+                case 'pay_each': {
+                    const otherPlayers = Object.values(newPlayers).filter(p => p.id !== playerId && p.role === 'player');
+                    for (const other of otherPlayers) {
+                        newPlayers[playerId].data.money -= effect.amount;
+                        newPlayers[other.id].data.money += effect.amount;
+                    }
+                    break;
+                }
+            }
         }
 
         // Status Updates - Determine if we wait for decision or auto-end
