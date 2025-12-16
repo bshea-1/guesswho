@@ -83,7 +83,7 @@ export default function GameSidebar({
                 )}
                 <div className="flex items-center justify-between mb-4 pr-8 md:pr-0">
                     <h2 className="font-bold text-xl text-yellow-400">
-                        {game.gameType === 'monopoly' ? 'Monopoly' :
+                        {game.gameType === 'word-bomb' ? 'Word Bomb' :
                             game.gameType === 'connect-4' ? 'Connect 4' :
                                 'Guess Who'}
                     </h2>

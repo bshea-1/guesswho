@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GameSidebar from '@/components/shared/GameSidebar';
 import GuessWhoGame from '@/components/games/GuessWhoGame';
 import Connect4Game from '@/components/games/Connect4Game';
-import MonopolyGame from '@/components/games/MonopolyGame';
+import WordBombGame from '@/components/games/WordBombGame';
 
 export default function GameClient({ roomId }: { roomId: string }) {
     const router = useRouter();
@@ -336,8 +336,8 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         iamActive={iamActive}
                         iamHost={iamHost}
                     />
-                ) : game.gameType === 'monopoly' ? (
-                    <MonopolyGame
+                ) : game.gameType === 'word-bomb' ? (
+                    <WordBombGame
                         game={game}
                         playerId={playerId!}
                         activePlayers={activePlayers}

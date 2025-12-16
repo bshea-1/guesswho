@@ -14,7 +14,7 @@ export type Player = {
 };
 
 
-export type GameType = 'guess-who' | 'monopoly' | 'connect-4';
+export type GameType = 'guess-who' | 'word-bomb' | 'connect-4';
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
@@ -41,15 +41,11 @@ export type GameState = {
     queue: string[]; // IDs of players waiting to play
     board: any; // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-    // Monopoly Specific State
-    auction?: {
-        propertyId: number;
-        currentBid: number;
-        highBidderId: string | null;
-        activeBidders: string[]; // List of players still in the auction
-        timerStart?: number; // For timeouts (optional MVP)
-    } | null;
-    monopolyStatus?: 'waiting_for_roll' | 'waiting_for_decision' | 'auction' | 'jail_decision';
+    // Word Bomb Specific State
+    wordBombPrompt?: string; // Current letter sequence to include
+    usedWords?: string[]; // Words already used this match
+    turnStartTime?: number; // When current turn started (for timer)
+    currentTimerDuration?: number; // Current timer in seconds
 
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];

@@ -1,0 +1,37 @@
+// Word Bomb Game Constants and Types
+
+export const WORD_BOMB_PROMPTS = [
+    // 2-letter combos
+    'TH', 'CH', 'SH', 'PH', 'WH', 'CK', 'NG', 'QU',
+    'EI', 'IE', 'EA', 'OU', 'AI', 'OO', 'EE',
+    'TR', 'PR', 'CR', 'BR', 'GR', 'FR', 'DR',
+    'ST', 'SP', 'SC', 'SK', 'SL', 'SM', 'SN', 'SW',
+    // 3-letter combos (harder)
+    'ING', 'TIO', 'THE', 'AND', 'ENT', 'ION', 'TER',
+    'FOR', 'WAS', 'NCE', 'EDT', 'TIS', 'OFT', 'STH',
+    'MEN', 'ALL', 'HER', 'ITH', 'HIS', 'OUR', 'ERE',
+    'PRO', 'COM', 'PER', 'INT', 'EST', 'STA', 'CTI',
+    'OTH', 'ERS', 'ITY', 'RAT', 'VER', 'ATE', 'OUN',
+    'ARE', 'EVE', 'OUT', 'ITE', 'INE', 'ANI', 'INI'
+];
+
+export interface WordBombPlayerData {
+    lives: number;
+    isEliminated: boolean;
+}
+
+export const INITIAL_LIVES = 3;
+export const INITIAL_TIMER_SECONDS = 15;
+export const MIN_TIMER_SECONDS = 5;
+export const TIMER_DECREASE_PER_ROUND = 0.5;
+
+export function getRandomPrompt(): string {
+    return WORD_BOMB_PROMPTS[Math.floor(Math.random() * WORD_BOMB_PROMPTS.length)];
+}
+
+export function createInitialWordBombData(): WordBombPlayerData {
+    return {
+        lives: INITIAL_LIVES,
+        isEliminated: false
+    };
+}

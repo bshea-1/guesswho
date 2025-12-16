@@ -2,8 +2,7 @@ import { GameState, ChatMessage } from './types';
 import { CHARACTERS } from './characters';
 import { sanitizeName } from './validation';
 import { createConnect4Board, dropPiece, checkConnect4Win, isBoardFull } from './games/connect4';
-import { createInitialMonopolyData, rollDice, getSpace, canAfford, calculateRent } from './games/monopoly/logic';
-import { MONOPOLY_BOARD, CHANCE_CARDS, COMMUNITY_CHEST_CARDS, Card, CardEffect } from './games/monopoly/constants';
+import { createInitialWordBombData, getRandomPrompt, INITIAL_TIMER_SECONDS, TIMER_DECREASE_PER_ROUND, MIN_TIMER_SECONDS } from './games/word-bomb';
 
 
 export function checkGuess(character: any, question: { category: string, value: any }): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -13,7 +12,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'ROLL_DICE' | 'BUY_PROPERTY' | 'PAY_JAIL_FINE' | 'PASS_PROPERTY' | 'PLACE_BID' | 'WITHDRAW_AUCTION';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -111,20 +110,9 @@ function startConnect4Match(state: GameState, p1Id: string, p2Id: string): GameS
     };
 }
 
-function startMonopolyMatch(state: GameState, p1Id: string, p2Id: string): GameState {
+function startWordBombMatch(state: GameState, p1Id: string, p2Id: string): GameState {
     const newQueue = state.queue.filter(id => id !== p1Id && id !== p2Id);
     const resetPlayers = { ...state.players };
-
-    // Assign colors
-    const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
-
-    // Active players
-    const activeIds = [p1Id, p2Id, ...state.queue.slice(0, 2)]; // Support up to 4 players? For now let's stick to 2 for consistency with other games or expand?
-    // User requested "Multi-game platform", Monopoly usually has more players.
-    // But existing queue system selects 2 players.
-    // Let's stick to 2 players for now to reuse queue logic, or take everyone?
-    // The queue system in `startMatchLogic` took only p1 and p2.
-    // `startMonopolyMatch` is called with p1, p2.
 
     // Reset everyone
     Object.keys(resetPlayers).forEach(pid => {
@@ -139,27 +127,33 @@ function startMonopolyMatch(state: GameState, p1Id: string, p2Id: string): GameS
     });
 
     if (!resetPlayers[p1Id] || !resetPlayers[p2Id]) {
-        throw new Error(`Invalid players for Monopoly match: ${p1Id}, ${p2Id}`);
+        throw new Error(`Invalid players for Word Bomb match: ${p1Id}, ${p2Id}`);
     }
 
     // P1
     resetPlayers[p1Id].role = 'player';
-    resetPlayers[p1Id].data = createInitialMonopolyData('red');
+    resetPlayers[p1Id].data = createInitialWordBombData();
 
     // P2
     resetPlayers[p2Id].role = 'player';
-    resetPlayers[p2Id].data = createInitialMonopolyData('blue');
+    resetPlayers[p2Id].data = createInitialWordBombData();
+
+    const initialPrompt = getRandomPrompt();
 
     return {
         ...state,
         players: resetPlayers,
-        queue: newQueue, // Should be updated in `startGame` wrapper but here we do it locally
+        queue: newQueue,
         status: 'playing',
         matchStatus: 'playing',
         turnPlayerId: p1Id,
         winnerId: null,
-        board: { ownership: {} }, // Shared ownership map propertyId -> playerId
-        history: [{ playerId: 'system', action: 'join', content: 'Match Started (Monopoly)', timestamp: Date.now() }],
+        board: null,
+        wordBombPrompt: initialPrompt,
+        usedWords: [],
+        turnStartTime: Date.now(),
+        currentTimerDuration: INITIAL_TIMER_SECONDS,
+        history: [{ playerId: 'system', action: 'info', content: `Match Started! First prompt: "${initialPrompt}"`, timestamp: Date.now() }],
         chat: state.chat.filter(m => m.scope !== 'game'),
     };
 }
@@ -232,8 +226,8 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
             return startGuessWhoMatch(stateWithP2, state.hostId, playerId);
         } else if (state.gameType === 'connect-4') {
             return startConnect4Match(stateWithP2, state.hostId, playerId);
-        } else if (state.gameType === 'monopoly') {
-            return startMonopolyMatch(stateWithP2, state.hostId, playerId);
+        } else if (state.gameType === 'word-bomb') {
+            return startWordBombMatch(stateWithP2, state.hostId, playerId);
         }
 
         return stateWithP2;
@@ -433,9 +427,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             return startGuessWhoMatch(stateWithQueue, p1Id, p2Id);
         } else if (state.gameType === 'connect-4') {
             return startConnect4Match(stateWithQueue, p1Id, p2Id);
-        } else if (state.gameType === 'monopoly') {
-            return startMonopolyMatch(stateWithQueue, p1Id, p2Id);
-
+        } else if (state.gameType === 'word-bomb') {
+            return startWordBombMatch(stateWithQueue, p1Id, p2Id);
         }
 
         return stateWithQueue; // Placeholder for other games
@@ -719,374 +712,142 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         };
     }
 
-    if (type === 'ROLL_DICE') {
-        if (state.gameType !== 'monopoly') throw new Error('Invalid game type');
+    // --- WORD BOMB ACTIONS ---
+    if (type === 'SUBMIT_WORD') {
+        if (state.gameType !== 'word-bomb') throw new Error('Invalid game type');
         if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
+        if (state.matchStatus !== 'playing') return state;
 
-        const player = state.players[playerId];
+        const word = (payload?.word || '').toLowerCase().trim();
+        const prompt = state.wordBombPrompt || '';
+        const usedWords = state.usedWords || [];
 
-        // Jail Check (Simple MVP: if in jail, try roll doubles to get out, else stay)
-        if (player.data.inJail) {
-            const [d1, d2] = rollDice();
-            const isDoubles = d1 === d2;
-
-            if (isDoubles) {
-                // Free!
-                const newPlayers = { ...state.players };
-                newPlayers[playerId] = {
-                    ...player,
-                    data: { ...player.data, inJail: false, jailTurns: 0 }
-                };
-                state = { ...state, players: newPlayers };
-                // Continue to move...
-            } else {
-                const newPlayers = { ...state.players };
-                const newJailTurns = player.data.jailTurns + 1;
-                newPlayers[playerId] = { ...player, data: { ...player.data, jailTurns: newJailTurns } };
-
-                // Auto-End Turn
-                const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-                const opponentId = activeIds.find(id => id !== playerId); // Simple 2 player turn swap logic for now
-                // Better turn cycle:
-                const currentIndex = activeIds.indexOf(playerId);
-                let nextTurnId = null;
-                if (currentIndex >= 0) nextTurnId = activeIds[(currentIndex + 1) % activeIds.length];
-
-                return {
-                    ...state,
-                    players: newPlayers,
-                    turnPlayerId: nextTurnId,
-                    history: [...state.history, { playerId, action: 'info', content: `${player.name} rolled ${d1}-${d2} (No Doubles). Stays in Jail.`, timestamp: Date.now() }]
-                };
-            }
-        }
-
-        const [d1, d2] = rollDice();
-        const rollTotal = d1 + d2;
-        const isDoubles = d1 === d2;
-
-        let newPos = player.data.position + rollTotal;
-        let passGoMoney = 0;
-        if (newPos >= MONOPOLY_BOARD.length) {
-            newPos = newPos % MONOPOLY_BOARD.length;
-            passGoMoney = 200;
-        }
-
-        const newPlayers = { ...state.players };
-        newPlayers[playerId] = {
-            ...player,
-            data: {
-                ...player.data,
-                position: newPos,
-                lastRoll: [d1, d2],
-                money: player.data.money + passGoMoney
-            }
-        };
-
-        let historyContent = `${player.name} rolled ${d1} + ${d2} = ${rollTotal}. Landed on ${getSpace(newPos).name}.`;
-        if (passGoMoney > 0) historyContent += ` Passed Go (+$200).`;
-
-        const space = getSpace(newPos);
-        const ownerId = state.board.ownership[space.id];
-
-        // 1. Go To Jail
-        if (space.type === 'go-to-jail') {
-            newPlayers[playerId].data.position = 10;
-            newPlayers[playerId].data.inJail = true;
-            historyContent += ` Sent to Jail!`;
-
-            const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-            const currentIndex = activeIds.indexOf(playerId);
-            let nextTurnId = null;
-            if (currentIndex >= 0) nextTurnId = activeIds[(currentIndex + 1) % activeIds.length];
-
+        // Validation: word must contain prompt
+        if (!word.includes(prompt.toLowerCase())) {
             return {
                 ...state,
-                players: newPlayers,
-                turnPlayerId: nextTurnId,
-                history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
+                history: [...state.history, {
+                    playerId,
+                    action: 'info',
+                    content: `"${word}" doesn't contain "${prompt}"!`,
+                    timestamp: Date.now()
+                }]
             };
         }
 
-        // 2. Taxes
-        if (space.type === 'tax') {
-            const taxAmount = space.price || 0;
-            newPlayers[playerId].data.money -= taxAmount;
-            historyContent += ` Paid $${taxAmount} tax.`;
+        // Validation: word must not be already used
+        if (usedWords.includes(word)) {
+            return {
+                ...state,
+                history: [...state.history, {
+                    playerId,
+                    action: 'info',
+                    content: `"${word}" was already used!`,
+                    timestamp: Date.now()
+                }]
+            };
         }
 
-        // 3. Rent
-        if (ownerId && ownerId !== playerId && space.type === 'property' && !state.board.mortgaged?.[space.id]) {
-            const rent = calculateRent(space, rollTotal, ownerId, state);
-            newPlayers[playerId].data.money -= rent;
-            newPlayers[ownerId].data.money += rent;
-            historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
-        } else if (ownerId && ownerId !== playerId && (space.group === 'utility' || space.group === 'station')) {
-            const rent = calculateRent(space, rollTotal, ownerId, state);
-            newPlayers[playerId].data.money -= rent;
-            newPlayers[ownerId].data.money += rent;
-            historyContent += ` Paid $${rent} rent to ${newPlayers[ownerId].name}.`;
-        }
+        // Word is valid! Next player's turn
+        const newUsedWords = [...usedWords, word];
+        const newPrompt = getRandomPrompt();
 
-        // 4. Chance / Community Chest
-        if (space.type === 'chance' || space.type === 'chest') {
-            const deck = space.type === 'chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
-            const card = deck[Math.floor(Math.random() * deck.length)];
+        // Get next player
+        const activePlayers = Object.values(state.players).filter(p => p.role === 'player' && !p.data?.isEliminated);
+        const currentIndex = activePlayers.findIndex(p => p.id === playerId);
+        const nextPlayer = activePlayers[(currentIndex + 1) % activePlayers.length];
 
-            historyContent += ` Drew ${space.type === 'chance' ? 'Chance' : 'Community Chest'}: "${card.text}"`;
-
-            const effect = card.effect;
-
-            switch (effect.type) {
-                case 'collect':
-                    newPlayers[playerId].data.money += effect.amount;
-                    break;
-                case 'pay':
-                    newPlayers[playerId].data.money -= effect.amount;
-                    break;
-                case 'move': {
-                    const destination = effect.to;
-                    // Check if passing Go
-                    if (destination < newPlayers[playerId].data.position && destination !== 10) {
-                        newPlayers[playerId].data.money += 200;
-                        historyContent += ` Passed Go (+$200).`;
-                    }
-                    newPlayers[playerId].data.position = destination;
-                    break;
-                }
-                case 'move_relative': {
-                    let newPosition = newPlayers[playerId].data.position + effect.spaces;
-                    if (newPosition < 0) newPosition = MONOPOLY_BOARD.length + newPosition;
-                    newPlayers[playerId].data.position = newPosition;
-                    break;
-                }
-                case 'go_to_jail':
-                    newPlayers[playerId].data.position = 10;
-                    newPlayers[playerId].data.inJail = true;
-                    break;
-                case 'get_out_of_jail':
-                    // Store as a "Get Out of Jail Free" card
-                    newPlayers[playerId].data.hasGetOutOfJailCard = true;
-                    break;
-                case 'collect_from_each': {
-                    const otherPlayers = Object.values(newPlayers).filter(p => p.id !== playerId && p.role === 'player');
-                    for (const other of otherPlayers) {
-                        newPlayers[other.id].data.money -= effect.amount;
-                        newPlayers[playerId].data.money += effect.amount;
-                    }
-                    break;
-                }
-                case 'pay_each': {
-                    const otherPlayers = Object.values(newPlayers).filter(p => p.id !== playerId && p.role === 'player');
-                    for (const other of otherPlayers) {
-                        newPlayers[playerId].data.money -= effect.amount;
-                        newPlayers[other.id].data.money += effect.amount;
-                    }
-                    break;
-                }
-            }
-        }
-
-        // Status Updates - Determine if we wait for decision or auto-end
-        let nextTurnPlayerId = state.turnPlayerId;
-        let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
-
-        const isUnownedProperty = space.type === 'property' && !ownerId && space.price;
-        if (isUnownedProperty) {
-            nextMonopolyStatus = 'waiting_for_decision';
-            historyContent += ` Decision required.`;
-        } else {
-            // STRICT TURN CYCLE: One roll per turn
-            // Even if doubles, we just move (and maybe get out of jail), but turn ends.
-            // This is a requested deviation/simplification.
-
-            if (isDoubles) {
-                historyContent += ` (Doubles!)`;
-            }
-
-            const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-            const currentIndex = activeIds.indexOf(playerId);
-            if (currentIndex >= 0) {
-                nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
-            }
-            historyContent += ` Turn ended.`;
-        }
+        // Decrease timer slightly for next round
+        const newTimer = Math.max(
+            MIN_TIMER_SECONDS,
+            (state.currentTimerDuration || INITIAL_TIMER_SECONDS) - TIMER_DECREASE_PER_ROUND
+        );
 
         return {
             ...state,
-            players: newPlayers,
-            turnPlayerId: nextTurnPlayerId,
-            monopolyStatus: nextMonopolyStatus,
-            history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
+            usedWords: newUsedWords,
+            wordBombPrompt: newPrompt,
+            turnPlayerId: nextPlayer?.id || null,
+            turnStartTime: Date.now(),
+            currentTimerDuration: newTimer,
+            history: [...state.history, {
+                playerId,
+                action: 'info',
+                content: `✓ "${word}" accepted! New prompt: "${newPrompt}"`,
+                timestamp: Date.now()
+            }]
         };
     }
 
-    if (type === 'BUY_PROPERTY') {
-        if (state.gameType !== 'monopoly') throw new Error('Invalid game type');
-        if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
+    if (type === 'TIMER_EXPIRED') {
+        if (state.gameType !== 'word-bomb') throw new Error('Invalid game type');
+        if (state.matchStatus !== 'playing') return state;
 
-        const player = state.players[playerId];
-        const pos = player.data.position;
-        const space = getSpace(pos);
-
-        if (!space.price) throw new Error('Not for sale');
-        if (state.board.ownership[space.id]) throw new Error('Already owned');
-        if (!canAfford(player.data, space.price)) throw new Error('Insufficient funds');
+        const currentPlayerId = state.turnPlayerId;
+        if (!currentPlayerId) return state;
 
         const newPlayers = { ...state.players };
-        newPlayers[playerId].data.money -= space.price;
-        newPlayers[playerId].data.properties.push(space.id);
+        const player = newPlayers[currentPlayerId];
+        if (!player || !player.data) return state;
 
-        const newBoard = {
-            ...state.board,
-            ownership: { ...state.board.ownership, [space.id]: playerId }
+        // Lose a life
+        const newLives = (player.data.lives || 0) - 1;
+        newPlayers[currentPlayerId] = {
+            ...player,
+            data: { ...player.data, lives: newLives, isEliminated: newLives <= 0 }
         };
 
-        let nextTurnPlayerId: string | null = state.turnPlayerId;
-        let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
+        // Check for winner
+        const remainingPlayers = Object.values(newPlayers).filter(
+            p => p.role === 'player' && !p.data?.isEliminated
+        );
 
-        let historyContent = `${player.name} bought ${space.name} for $${space.price}.`;
-
-        // Strict Turn Cycle: Buying ends turn
-        const activeIds = Object.values(state.players).filter(p => p.role === 'player').map(p => p.id);
-        const currentIndex = activeIds.indexOf(playerId);
-        if (currentIndex >= 0) {
-            nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
+        if (remainingPlayers.length <= 1) {
+            const winnerId = remainingPlayers[0]?.id || null;
+            newPlayers[winnerId!] = {
+                ...newPlayers[winnerId!],
+                wins: (newPlayers[winnerId!]?.wins || 0) + 1
+            };
+            return {
+                ...state,
+                players: newPlayers,
+                matchStatus: 'finished',
+                winnerId,
+                turnPlayerId: null,
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'WIN',
+                    content: `💥 ${player.name} ran out of time and lives! ${remainingPlayers[0]?.name || 'Nobody'} wins!`,
+                    timestamp: Date.now()
+                }]
+            };
         }
-        if (!nextTurnPlayerId && activeIds.length > 0) nextTurnPlayerId = activeIds[0]; // Fallback to first player if null 
 
-        historyContent += ` Turn ended.`;
+        // Get next player (skip eliminated)
+        const currentIndex = remainingPlayers.findIndex(p => p.id === currentPlayerId);
+        let nextIndex = currentIndex;
+        if (newLives <= 0) {
+            // Current player eliminated, they're removed from list
+            nextIndex = currentIndex % remainingPlayers.length;
+        } else {
+            nextIndex = (currentIndex + 1) % remainingPlayers.length;
+        }
+        const nextPlayer = remainingPlayers[nextIndex];
+
+        const newPrompt = getRandomPrompt();
 
         return {
             ...state,
             players: newPlayers,
-            board: newBoard,
-            turnPlayerId: nextTurnPlayerId,
-            monopolyStatus: nextMonopolyStatus,
-            history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
-        };
-    }
-
-    if (type === 'PASS_PROPERTY') {
-        if (state.gameType !== 'monopoly') throw new Error('Invalid game type');
-        if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
-
-        // Start Auction
-        const player = state.players[playerId];
-        const space = getSpace(player.data.position);
-
-        const activeIds = Object.values(state.players)
-            .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
-            .map(p => p.id);
-
-        return {
-            ...state,
-            monopolyStatus: 'auction',
-            auction: {
-                propertyId: space.id,
-                currentBid: 0,
-                highBidderId: null,
-                activeBidders: activeIds,
-                timerStart: Date.now()
-            },
-            history: [...state.history, { playerId, action: 'info', content: `${player.name} passed on ${space.name}. Auction started!`, timestamp: Date.now() }]
-        };
-    }
-
-    if (type === 'PLACE_BID') {
-        if (!state.auction) throw new Error('No auction active');
-        if (!state.auction.activeBidders.includes(playerId)) throw new Error('Not in auction');
-
-        const bidAmount = payload?.amount || (state.auction.currentBid + 10);
-        if (bidAmount <= state.auction.currentBid) throw new Error('Bid too low');
-        if (!canAfford(state.players[playerId].data, bidAmount)) throw new Error('Cannot afford bid');
-
-        return {
-            ...state,
-            auction: {
-                ...state.auction,
-                currentBid: bidAmount,
-                highBidderId: playerId,
-                timerStart: Date.now()
-            },
-            history: [...state.history, { playerId, action: 'info', content: `${state.players[playerId].name} bid $${bidAmount}.`, timestamp: Date.now() }]
-        };
-    }
-
-    if (type === 'WITHDRAW_AUCTION') {
-        if (!state.auction) return state;
-
-        const newActiveBidders = state.auction.activeBidders.filter(id => id !== playerId);
-        let historyContent = `${state.players[playerId].name} withdrew from auction.`;
-
-        // Check if only 1 left -> Winner
-        if (newActiveBidders.length === 1 && state.auction.highBidderId) {
-            const winnerId = state.auction.highBidderId;
-            // Only if High Bidder is the one left? 
-            // Actually, if everyone withdraws except one, that one wins at current price?
-            // If the last person is the high bidder, they win. 
-            // If the last person is NOT the high bidder (e.g. high bidder withdrew?), we have complexity.
-            // Simplified: High bidder can't withdraw? Or if they do, bid reset?
-            // Let's assume High Bidder stays implicitly until outbid.
-
-            // If newActiveBidders only contains winnerId
-            if (newActiveBidders.includes(winnerId)) {
-                // Winner!
-                const winner = state.players[winnerId];
-                const price = state.auction.currentBid;
-                const propId = state.auction.propertyId;
-                const space = getSpace(propId);
-
-                const newPlayers = { ...state.players };
-                newPlayers[winnerId].data.money -= price;
-                newPlayers[winnerId].data.properties.push(propId);
-
-                const newBoard = {
-                    ...state.board,
-                    ownership: { ...state.board.ownership, [propId]: winnerId }
-                };
-
-                historyContent += ` ${winner.name} wins auction for $${price}!`;
-
-                // End Auction and Resume Game
-                // Whose turn was it? state.turnPlayerId.
-                // We need to check Doubles for them to see if their turn continues.
-                const turnPlayer = state.players[state.turnPlayerId || ''];
-                const [d1, d2] = turnPlayer?.data.lastRoll || [1, 2];
-                const isDoubles = d1 === d2;
-
-                let nextTurnPlayerId = state.turnPlayerId;
-                let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
-
-                if (!isDoubles) {
-                    // Next player
-                    const activeIds = Object.values(state.players)
-                        .filter(p => p.role === 'player' || (p.role === 'host' && p.characterId))
-                        .map(p => p.id);
-                    const currentIndex = activeIds.indexOf(state.turnPlayerId || '');
-                    if (currentIndex >= 0) {
-                        nextTurnPlayerId = activeIds[(currentIndex + 1) % activeIds.length] || null;
-                    }
-                } else {
-                    historyContent += ` ${turnPlayer.name}'s turn continues (Doubles).`;
-                }
-
-                return {
-                    ...state,
-                    players: newPlayers,
-                    board: newBoard,
-                    auction: null,
-                    monopolyStatus: nextMonopolyStatus,
-                    turnPlayerId: nextTurnPlayerId,
-                    history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
-                };
-            }
-        }
-
-        return {
-            ...state,
-            auction: { ...state.auction, activeBidders: newActiveBidders },
-            history: [...state.history, { playerId, action: 'info', content: historyContent, timestamp: Date.now() }]
+            wordBombPrompt: newPrompt,
+            turnPlayerId: nextPlayer?.id || null,
+            turnStartTime: Date.now(),
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `💥 ${player.name} ran out of time! ${newLives > 0 ? `${newLives} lives left.` : 'ELIMINATED!'} New prompt: "${newPrompt}"`,
+                timestamp: Date.now()
+            }]
         };
     }
 

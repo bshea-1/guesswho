@@ -16,7 +16,7 @@ export function sanitizeName(name: string): string {
 export const CreateRoomSchema = z.object({
     hostName: NameSchema.optional(),
     visibility: z.enum(['public', 'unlisted', 'private']),
-    gameType: z.enum(['guess-who', 'monopoly', 'connect-4']).default('guess-who'),
+    gameType: z.enum(['guess-who', 'word-bomb', 'connect-4']).default('guess-who'),
 });
 
 export const JoinRoomSchema = z.object({
