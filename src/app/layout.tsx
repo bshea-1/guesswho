@@ -15,9 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Skibidi Games",
   description: "Play classic games like Guess Who, Connect 4, and Word Bomb online with friends!",
+  manifest: "/manifest.json",
   icons: {
     icon: "/favicon.png",
   },
+  other: {
+    "theme-color": "#0f172a",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent"
+  }
 };
 
 export default function RootLayout({

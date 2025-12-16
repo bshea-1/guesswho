@@ -12,7 +12,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -820,7 +820,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 winnerId,
                 turnPlayerId: null,
                 lobbyCountdownStart: Date.now(),
-                joinedNextRound: winnerId ? [winnerId] : [],
+                joinedNextRound: [], // Empty queue, players must opt-in
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'WIN',
@@ -937,6 +937,88 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 playerId: 'system',
                 action: 'info',
                 content: `New round started with ${joinedPlayers.length} players! Prompt: "${initialPrompt}"`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // Reset Lobby Timer (looping mechanic)
+    if (type === 'RESET_LOBBY_TIMER') {
+        if (state.gameType !== 'word-bomb') return state;
+        if (state.matchStatus !== 'finished') return state;
+
+        return {
+            ...state,
+            lobbyCountdownStart: Date.now()
+        };
+    }
+
+    // Give Up / Forfeit Word (Lose a life immediately)
+    if (type === 'FORFEIT_WORD') {
+        if (state.gameType !== 'word-bomb') return state;
+        if (state.turnPlayerId !== playerId) return state; // Only current player can yield
+
+        // Using same logic as TIMER_EXPIRED but explicit
+        // We can actually just recurse or copy logic. Copying for safety/clarity.
+
+        const newPlayers = { ...state.players };
+        const player = newPlayers[playerId];
+        if (!player || !player.data) return state;
+
+        const newLives = (player.data.lives || 0) - 1;
+        newPlayers[playerId] = {
+            ...player,
+            data: { ...player.data, lives: newLives, isEliminated: newLives <= 0 }
+        };
+
+        // Check for winner
+        const remainingPlayers = Object.values(newPlayers).filter(
+            p => p.role === 'player' && !p.data?.isEliminated
+        );
+
+        if (remainingPlayers.length <= 1) {
+            const winnerId = remainingPlayers[0]?.id || null;
+            if (winnerId && newPlayers[winnerId]) {
+                newPlayers[winnerId] = {
+                    ...newPlayers[winnerId],
+                    wins: (newPlayers[winnerId]?.wins || 0) + 1
+                };
+            }
+
+            return {
+                ...state,
+                players: newPlayers,
+                matchStatus: 'finished',
+                winnerId,
+                turnPlayerId: null,
+                lobbyCountdownStart: Date.now(),
+                joinedNextRound: [], // Queue empty
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'WIN',
+                    content: `💥 ${player.name} gave up! ${remainingPlayers[0]?.name || 'Nobody'} wins! Next round in 15 seconds...`,
+                    timestamp: Date.now()
+                }]
+            };
+        }
+
+        // Get next player
+        const activePlayers = Object.values(state.players).filter(p => p.role === 'player' && !p.data?.isEliminated);
+        const currentIndex = activePlayers.findIndex(p => p.id === playerId);
+        const nextPlayer = activePlayers[(currentIndex + 1) % activePlayers.length];
+        const newPrompt = getRandomPrompt();
+
+        return {
+            ...state,
+            players: newPlayers,
+            wordBombPrompt: newPrompt,
+            turnPlayerId: nextPlayer?.id || null,
+            turnStartTime: Date.now(),
+            currentTimerDuration: INITIAL_TIMER_SECONDS, // Reset timer for next player? Usually yes.
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `💥 ${player.name} gave up! ${newLives} lives left. New prompt: "${newPrompt}"`,
                 timestamp: Date.now()
             }]
         };

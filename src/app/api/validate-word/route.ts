@@ -114,17 +114,17 @@ export async function GET(request: Request) {
                 return NextResponse.json({ valid: false, error: 'Word not found in dictionaries' });
             } catch (wikiError) {
                 console.error('Wiktionary API error:', wikiError);
-                // If both fail, and it's not a network error, assume invalid
+                // If both fail, assume invalid (strict mode)
                 return NextResponse.json({ valid: false, error: 'Word not found (Validation Service Error)' });
             }
         } else {
-            // API error - be lenient
+            // API error - be strict
             console.error('Dictionary API error:', response.status);
-            return NextResponse.json({ valid: true, warning: 'Could not verify, accepted' });
+            return NextResponse.json({ valid: false, error: 'Validation service unavailable' });
         }
     } catch (error) {
         console.error('Dictionary API fetch error:', error);
-        // On network error, be lenient
-        return NextResponse.json({ valid: true, warning: 'Could not verify, accepted' });
+        // On network error, be strict
+        return NextResponse.json({ valid: false, error: 'Validation service unavailable' });
     }
 }

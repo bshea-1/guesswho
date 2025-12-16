@@ -3,7 +3,7 @@
 import { GameState, Player } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bomb, Heart, Send, AlertCircle, CheckCircle, UserPlus, Users } from 'lucide-react';
+import { Bomb, Heart, Send, AlertCircle, CheckCircle, UserPlus, Users, Flag } from 'lucide-react';
 
 const INITIAL_TIMER = 15;
 const LOBBY_DURATION = 15;
@@ -90,17 +90,28 @@ export default function WordBombGame({
             const remaining = Math.max(0, LOBBY_DURATION - elapsed);
             setLobbyTimeLeft(remaining);
 
-            // Auto-start when countdown ends and at least 2 players joined
-            if (remaining <= 0 && joinedPlayers.length >= 2 && !matchStarted) {
-                setMatchStarted(true);
-                sendAction('START_WORD_BOMB_MATCH', null);
+            // When countdown ends
+            if (remaining <= 0 && !matchStarted) {
+                if (joinedPlayers.length >= 2) {
+                    // Start game if enough players
+                    // Only host sends action to prevent race/spam
+                    if (iamHost) {
+                        setMatchStarted(true);
+                        sendAction('START_WORD_BOMB_MATCH', null);
+                    }
+                } else {
+                    // Loop timer if waiting for players
+                    if (iamHost) {
+                        sendAction('RESET_LOBBY_TIMER', null);
+                    }
+                }
             }
         };
 
         updateLobbyTimer();
         const interval = setInterval(updateLobbyTimer, 100);
         return () => clearInterval(interval);
-    }, [isInLobby, game.lobbyCountdownStart, joinedPlayers.length, matchStarted, sendAction]);
+    }, [isInLobby, game.lobbyCountdownStart, joinedPlayers.length, matchStarted, sendAction, iamHost]);
 
     // Focus input on my turn
     useEffect(() => {
@@ -134,7 +145,7 @@ export default function WordBombGame({
             const data = await res.json();
             return data.valid;
         } catch {
-            return true;
+            return false;
         }
     }, []);
 
@@ -323,8 +334,17 @@ export default function WordBombGame({
                                         onClick={handleSubmit}
                                         disabled={submitting || !inputWord.trim()}
                                         className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition flex items-center gap-2"
+                                        title="Send Word"
                                     >
                                         <Send size={20} />
+                                    </button>
+                                    <button
+                                        onClick={() => sendAction('FORFEIT_WORD', null)}
+                                        disabled={submitting}
+                                        className="bg-slate-700 hover:bg-red-600 disabled:opacity-50 text-white font-bold px-4 py-3 rounded-xl transition flex items-center gap-2"
+                                        title="Give Up / Skip Turn (Lose Life)"
+                                    >
+                                        <Flag size={20} />
                                     </button>
                                 </div>
 
