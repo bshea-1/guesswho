@@ -883,7 +883,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             ownership: { ...state.board.ownership, [space.id]: playerId }
         };
 
-        let nextTurnPlayerId = state.turnPlayerId;
+        let nextTurnPlayerId: string | null = state.turnPlayerId;
         let nextMonopolyStatus: GameState['monopolyStatus'] = 'waiting_for_roll';
 
         let historyContent = `${player.name} bought ${space.name} for $${space.price}.`;
