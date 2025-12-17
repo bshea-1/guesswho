@@ -3,6 +3,7 @@ import { useGameStore } from '@/lib/store';
 import { GameState, Player } from '@/lib/types';
 import { Loader2, Copy, Check, Home, Crown, UserX, LogOut, Menu, X, UserMinus } from 'lucide-react';
 import QueueManager from './QueueManager';
+import ConfirmationModal from './ConfirmationModal';
 
 // Extracted Sidebar Content Component
 export default function GameSidebar({
@@ -40,6 +41,14 @@ export default function GameSidebar({
 }) {
     const [activeTab, setActiveTab] = useState<'participants' | 'queue'>('participants');
     const [showTransferModal, setShowTransferModal] = useState(false);
+    const [confirmation, setConfirmation] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        isDanger: false,
+        confirmText: 'Confirm'
+    });
     const { setGame } = useGameStore();
 
     const [pendingMessages, setPendingMessages] = useState<any[]>([]);
@@ -100,13 +109,20 @@ export default function GameSidebar({
                                     <Crown size={18} />
                                 </button>
                                 <button
-                                    onClick={async () => {
-                                        if (confirm('End this party? Everyone will be disconnected.')) {
-                                            const res = await sendAction('END_PARTY', null);
-                                            if (res && res.success) {
-                                                handleLeaveParty();
+                                    onClick={() => {
+                                        setConfirmation({
+                                            isOpen: true,
+                                            title: 'End Party?',
+                                            message: 'Are you sure you want to end this party? Everyone will be disconnected.',
+                                            confirmText: 'End Party',
+                                            isDanger: true,
+                                            onConfirm: async () => {
+                                                const res = await sendAction('END_PARTY', null);
+                                                if (res && res.success) {
+                                                    handleLeaveParty();
+                                                }
                                             }
-                                        }
+                                        });
                                     }}
                                     className="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-900/30 transition"
                                     title="End Party"
@@ -149,11 +165,18 @@ export default function GameSidebar({
                                     .map(p => (
                                         <button
                                             key={p.id}
-                                            onClick={async () => {
-                                                if (confirm(`Make ${p.name} the new host?`)) {
-                                                    await sendAction('TRANSFER_HOST', { targetId: p.id });
-                                                    setShowTransferModal(false);
-                                                }
+                                            onClick={() => {
+                                                setConfirmation({
+                                                    isOpen: true,
+                                                    title: 'Transfer Host',
+                                                    message: `Make ${p.name} the new host?`,
+                                                    confirmText: 'Promote',
+                                                    isDanger: false,
+                                                    onConfirm: async () => {
+                                                        await sendAction('TRANSFER_HOST', { targetId: p.id });
+                                                        setShowTransferModal(false);
+                                                    }
+                                                });
                                             }}
                                             className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/5 transition group"
                                         >
@@ -222,9 +245,14 @@ export default function GameSidebar({
                                                 {iamHost && p.id !== playerId && (
                                                     <button
                                                         onClick={() => {
-                                                            if (confirm(`Kick ${p.name}? This will end the current match.`)) {
-                                                                sendAction('KICK_PLAYER', { targetId: p.id });
-                                                            }
+                                                            setConfirmation({
+                                                                isOpen: true,
+                                                                title: 'Kick Player?',
+                                                                message: `Kick ${p.name}? This will end the current match if they are playing.`,
+                                                                confirmText: 'Kick',
+                                                                isDanger: true,
+                                                                onConfirm: () => sendAction('KICK_PLAYER', { targetId: p.id })
+                                                            });
                                                         }}
                                                         className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition"
                                                         title="Kick Player"
@@ -265,9 +293,14 @@ export default function GameSidebar({
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (confirm(`Ban ${p.name} from this room? They will not be able to rejoin.`)) {
-                                                            sendAction('BAN_PLAYER', { targetId: p.id });
-                                                        }
+                                                        setConfirmation({
+                                                            isOpen: true,
+                                                            title: 'Ban Player?',
+                                                            message: `Ban ${p.name} from this room? They will not be able to rejoin.`,
+                                                            confirmText: 'Ban',
+                                                            isDanger: true,
+                                                            onConfirm: () => sendAction('BAN_PLAYER', { targetId: p.id })
+                                                        });
                                                     }}
                                                     className="p-1 text-red-500/50 hover:text-red-400 hover:bg-red-900/30 rounded transition"
                                                     title={`Ban ${p.name}`}
@@ -381,6 +414,16 @@ export default function GameSidebar({
                     />
                 </form>
             </div>
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmation.isOpen}
+                onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmation.onConfirm}
+                title={confirmation.title}
+                message={confirmation.message}
+                confirmText={confirmation.confirmText}
+                isDanger={confirmation.isDanger}
+            />
         </div>
     );
 }

@@ -427,7 +427,11 @@ export default function HomeClient() {
                                     <p className="text-slate-400 text-lg animate-pulse">{loadingMessage}</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 gap-3 pt-4">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="grid grid-cols-1 gap-3 pt-4"
+                                >
 
                                     <div className="flex flex-col">
                                         <button onClick={handleCreate} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white p-4 rounded-t-xl font-bold transition z-10 relative">
@@ -456,14 +460,18 @@ export default function HomeClient() {
                                             <Eye size={20} /> Watch
                                         </button>
                                     </div>
-                                </div>
+                                </motion.div>
                             )
                         )}
 
                         {/* Mode 'create' block Removed entirely */}
 
                         {mode === 'select-game' && (
-                            <div className="space-y-4 pt-4">
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-4 pt-4"
+                            >
                                 <h2 className="text-xl font-bold text-center text-white mb-4">Choose a Game</h2>
                                 <div className="grid grid-cols-1 gap-3">
                                     <button
@@ -532,11 +540,15 @@ export default function HomeClient() {
                                     </button>
                                 </div>
                                 <button onClick={() => setMode(null)} className="w-full text-slate-500 text-sm hover:text-white pt-2">Cancel</button>
-                            </div>
+                            </motion.div>
                         )}
 
                         {(mode === 'join' || mode === 'spectate') && (
-                            <div className="space-y-4 pt-4">
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-4 pt-4"
+                            >
                                 <div>
                                     <label className="block text-sm font-medium text-slate-400 mb-1">Room Code</label>
                                     <input
@@ -551,7 +563,7 @@ export default function HomeClient() {
                                     {loading ? <Loader2 className="animate-spin" /> : (mode === 'join' ? 'Join Game' : 'Spectate')}
                                 </button>
                                 <button onClick={() => setMode(null)} className="w-full text-slate-500 text-sm hover:text-white">Cancel</button>
-                            </div>
+                            </motion.div>
                         )}
 
                         {error && (
