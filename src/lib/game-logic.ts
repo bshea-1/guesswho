@@ -303,14 +303,19 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
             }
         };
         // Auto-start using Host and New Player
-        if (state.gameType === 'guess-who') {
+        // CAH requires 3+ players, so don't auto-start
+        if (state.gameType === 'cah') {
+            // For CAH: Add both players to queue and wait for more
+            return {
+                ...stateWithP2,
+                queue: [state.hostId, playerId]
+            };
+        } else if (state.gameType === 'guess-who') {
             return startGuessWhoMatch(stateWithP2, state.hostId, playerId);
         } else if (state.gameType === 'connect-4') {
             return startConnect4Match(stateWithP2, state.hostId, playerId);
         } else if (state.gameType === 'word-bomb') {
             return startWordBombMatch(stateWithP2, state.hostId, playerId);
-        } else if (state.gameType === 'cah') {
-            return startCAHMatch(stateWithP2, state.hostId, playerId);
         }
 
         return stateWithP2;
@@ -513,6 +518,10 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         } else if (state.gameType === 'word-bomb') {
             return startWordBombMatch(stateWithQueue, p1Id, p2Id);
         } else if (state.gameType === 'cah') {
+            // CAH requires minimum 3 players
+            if (currentQueue.length < 3) {
+                throw new Error('Cards Against Humanity requires at least 3 players');
+            }
             return startCAHMatch(stateWithQueue, p1Id, p2Id);
         }
 

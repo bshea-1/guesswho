@@ -1,7 +1,9 @@
+'use client';
 
 import React, { useState } from 'react';
-import { GameState, Player } from '@/lib/types';
+import { GameState } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Plus } from 'lucide-react';
 
 type Props = {
     gameState: GameState;
@@ -15,12 +17,13 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
     const isCzar = playerId === cahCzarId;
 
     // Hand management
-    const hand = (player?.data?.hand as string[]) || []; // Spectators/Hosts might not have data
+    const hand = (player?.data?.hand as string[]) || [];
     const [selectedCards, setSelectedCards] = useState<string[]>([]);
+    const [customCardText, setCustomCardText] = useState('');
+    const [showCustomInput, setShowCustomInput] = useState(false);
 
     // If we're not a player (spectator), just watch
     const isPlayer = player?.role === 'player';
-
     const pickCount = cahBlackCard?.pick || 1;
 
     // Have I submitted?
@@ -35,16 +38,19 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
         } else {
             if (selectedCards.length < pickCount) {
                 setSelectedCards([...selectedCards, card]);
-            } else {
-                // Replace the first selected if full? Or just block?
-                // Standard UI: de-select required.
-                // Or "Select up to N".
-                // Let's do simple: If 1, swap. If >1, block.
-                if (pickCount === 1) {
-                    setSelectedCards([card]);
-                }
+            } else if (pickCount === 1) {
+                setSelectedCards([card]);
             }
         }
+    };
+
+    const handleSubmitCustomCard = () => {
+        if (!customCardText.trim()) return;
+        // Add custom card to selection and submit immediately
+        const customCard = customCardText.trim();
+        sendAction('SUBMIT_CARDS', [customCard]);
+        setCustomCardText('');
+        setShowCustomInput(false);
     };
 
     const handleSubmit = () => {
@@ -64,67 +70,69 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-900 text-white p-4">
-            {/* Top Bar: Czar Info & Game State */}
-            <div className="flex justify-between items-center mb-6 bg-slate-800 p-4 rounded-xl shadow-lg">
-                <div>
-                    <h2 className="text-xl font-black text-yellow-500">
-                        {isCzar ? "YOU ARE THE CZAR" : `${players[cahCzarId || '']?.name || 'Unknown'} IS THE CZAR`}
+        <div className="flex flex-col h-full bg-slate-900 text-white overflow-hidden">
+            {/* Top Bar: Compact on mobile */}
+            <div className="flex flex-wrap justify-between items-center p-2 sm:p-4 bg-slate-800 shadow-lg gap-2">
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-sm sm:text-xl font-black text-yellow-500 truncate">
+                        {isCzar ? "YOU ARE THE CZAR" : `${players[cahCzarId || '']?.name || '?'} IS CZAR`}
                     </h2>
-                    <p className="text-slate-400 text-sm">
-                        {cahPhase === 'pick' && "Players are choosing..."}
-                        {cahPhase === 'judge' && "Czar is judging..."}
-                        {cahPhase === 'result' && "Round Winner decided!"}
+                    <p className="text-slate-400 text-xs sm:text-sm">
+                        {cahPhase === 'pick' && "Choosing cards..."}
+                        {cahPhase === 'judge' && "Czar judging..."}
+                        {cahPhase === 'result' && "Winner!"}
                     </p>
                 </div>
-                <div className="flex space-x-4">
-                    {/* Scores could go here */}
-                    {Object.values(players).filter(p => p.role === 'player').map(p => (
-                        <div key={p.id} className="flex flex-col items-center">
-                            <span className="text-xs font-bold text-slate-400">{p.name}</span>
-                            <span className="text-lg font-black">{p.data?.score || 0}</span>
+                {/* Scores - Horizontal scroll on mobile */}
+                <div className="flex gap-2 sm:gap-4 overflow-x-auto max-w-[50%] shrink-0">
+                    {Object.values(players).filter(p => p.role === 'player').slice(0, 5).map(p => (
+                        <div key={p.id} className="flex flex-col items-center shrink-0">
+                            <span className="text-[10px] sm:text-xs font-bold text-slate-400 truncate max-w-[40px] sm:max-w-none">{p.name}</span>
+                            <span className="text-sm sm:text-lg font-black">{p.data?.score || 0}</span>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* Black Card Area */}
-            <div className="flex justify-center mb-8">
-                <div className="bg-black text-white p-6 rounded-xl w-64 h-80 shadow-2xl border border-slate-700 flex flex-col relative">
-                    <h3 className="text-xl font-bold leading-tight">
-                        {cahBlackCard?.text.replace(/_/g, '_______')}
-                    </h3>
-                    <div className="mt-auto absolute bottom-4 right-4 bg-white text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                        {cahBlackCard?.pick}
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+                {/* Black Card - Centered, responsive size */}
+                <div className="flex justify-center mb-4 sm:mb-6">
+                    <div className="bg-black text-white p-3 sm:p-6 rounded-xl w-full max-w-xs sm:max-w-sm shadow-2xl border border-slate-700 relative min-h-[120px] sm:min-h-[200px]">
+                        <h3 className="text-base sm:text-xl font-bold leading-tight">
+                            {cahBlackCard?.text.replace(/_/g, '_______')}
+                        </h3>
+                        <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-white text-black text-xs font-bold rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center">
+                            {cahBlackCard?.pick}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Center Area: Submissions (if judging) or Result */}
-            <div className="flex-1 overflow-y-auto min-h-[200px]">
+                {/* Submissions Area (Judge/Result phase) */}
                 {cahPhase !== 'pick' && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                         {(cahSubmissions || []).map((sub, idx) => (
                             <motion.div
                                 key={idx}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className={`
-                                    bg-white text-black p-4 rounded-xl w-48 h-64 shadow-xl cursor-pointer transition-all hover:scale-105 active:scale-95
-                                    ${sub.isWinner ? 'ring-4 ring-yellow-500 scale-110 z-10' : ''}
-                                    ${isCzar && cahPhase === 'judge' ? 'hover:ring-4 hover:ring-blue-500' : ''}
-                                `}
                                 onClick={() => handlePickWinner(sub.playerId)}
+                                className={`
+                                    bg-white text-black p-2 sm:p-4 rounded-lg sm:rounded-xl min-h-[100px] sm:min-h-[150px] shadow-xl 
+                                    cursor-pointer transition-all active:scale-95
+                                    ${sub.isWinner ? 'ring-4 ring-yellow-500 scale-105 z-10' : ''}
+                                    ${isCzar && cahPhase === 'judge' ? 'hover:ring-2 hover:ring-blue-500' : ''}
+                                `}
                             >
-                                <div className="font-bold text-lg">
+                                <div className="font-bold text-xs sm:text-base leading-snug">
                                     {sub.cards.map((text, i) => (
-                                        <p key={i} className="mb-2">{text}</p>
+                                        <p key={i} className="mb-1">{text}</p>
                                     ))}
                                 </div>
                                 {cahPhase === 'result' && sub.isWinner && (
-                                    <div className="mt-4 text-center">
-                                        <span className="bg-yellow-500 text-black font-bold px-2 py-1 rounded">WINNER</span>
-                                        <p className="text-xs mt-1 text-slate-500">{players[sub.playerId]?.name}</p>
+                                    <div className="mt-2 text-center">
+                                        <span className="bg-yellow-500 text-black font-bold px-2 py-0.5 rounded text-xs">WINNER</span>
+                                        <p className="text-[10px] mt-1 text-slate-500">{players[sub.playerId]?.name}</p>
                                     </div>
                                 )}
                             </motion.div>
@@ -132,70 +140,113 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
                     </div>
                 )}
 
+                {/* Czar Waiting Message */}
                 {cahPhase === 'pick' && isCzar && (
-                    <div className="flex items-center justify-center h-full text-slate-500 animate-pulse">
-                        Waiting for plebs to submit their cards...
+                    <div className="flex items-center justify-center py-12 text-slate-500 animate-pulse text-center px-4">
+                        <p>Waiting for plebs to submit their cards...</p>
+                    </div>
+                )}
+
+                {/* Submitted Message */}
+                {cahPhase === 'pick' && hasSubmitted && (
+                    <div className="flex items-center justify-center py-8 bg-slate-800/50 rounded-xl">
+                        <div className="text-center">
+                            <div className="text-3xl sm:text-4xl mb-2">🎉</div>
+                            <h3 className="text-lg sm:text-xl font-bold text-white">Submitted!</h3>
+                            <p className="text-slate-400 text-sm">Waiting for others...</p>
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* Bottom Area: Controls & Hand */}
+            {/* Next Round Button */}
             {cahPhase === 'result' && isCzar && (
-                <div className="flex justify-center p-4">
+                <div className="p-3 sm:p-4 border-t border-slate-800">
                     <button
                         onClick={handleNextRound}
-                        className="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-12 rounded-full text-xl shadow-xl transition-all hover:scale-105 active:scale-95"
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 sm:py-4 rounded-xl text-lg sm:text-xl shadow-xl transition-all active:scale-95"
                     >
-                        START NEXT ROUND
+                        NEXT ROUND
                     </button>
                 </div>
             )}
 
-            {/* My Hand (Only if playing, not Czar, and picking phase) */}
+            {/* Player Hand (pick phase, not czar, not submitted) */}
             {cahPhase === 'pick' && !isCzar && isPlayer && !hasSubmitted && (
-                <div className="mt-auto pt-4 border-t border-slate-800">
-                    <div className="flex justify-between items-center mb-2 px-2">
-                        <span className="text-sm text-slate-400 font-bold uppercase tracking-wider">Your Hand (Pick {pickCount})</span>
-                        <button
-                            disabled={selectedCards.length !== pickCount}
-                            onClick={handleSubmit}
-                            className={`
-                                px-6 py-2 rounded-full font-bold transition-all
-                                ${selectedCards.length === pickCount
-                                    ? 'bg-green-500 hover:bg-green-400 text-white shadow-lg hover:scale-105'
-                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
-                            `}
-                        >
-                            Submit Selection
-                        </button>
+                <div className="border-t border-slate-800 bg-slate-950 shrink-0">
+                    {/* Header */}
+                    <div className="flex justify-between items-center p-2 sm:p-3">
+                        <span className="text-xs sm:text-sm text-slate-400 font-bold uppercase">Pick {pickCount}</span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowCustomInput(!showCustomInput)}
+                                className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-xs font-bold transition"
+                            >
+                                <Plus size={14} /> Custom
+                            </button>
+                            <button
+                                disabled={selectedCards.length !== pickCount}
+                                onClick={handleSubmit}
+                                className={`
+                                    px-4 py-1 rounded-full font-bold text-xs transition-all
+                                    ${selectedCards.length === pickCount
+                                        ? 'bg-green-500 hover:bg-green-400 text-white'
+                                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
+                                `}
+                            >
+                                Submit
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex flex-nowrap overflow-x-auto space-x-3 pb-4 px-2 snap-x">
+
+                    {/* Custom Card Input */}
+                    <AnimatePresence>
+                        {showCustomInput && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="px-2 pb-2 overflow-hidden"
+                            >
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={customCardText}
+                                        onChange={(e) => setCustomCardText(e.target.value)}
+                                        placeholder="Type your custom card..."
+                                        className="flex-1 bg-slate-800 text-white px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSubmitCustomCard()}
+                                    />
+                                    <button
+                                        onClick={handleSubmitCustomCard}
+                                        disabled={!customCardText.trim()}
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg text-sm font-bold transition"
+                                    >
+                                        Send
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Cards - Horizontal scroll, smaller on mobile */}
+                    <div className="flex overflow-x-auto gap-2 p-2 pb-4 snap-x snap-mandatory">
                         {hand.map((card, idx) => (
                             <motion.div
                                 key={idx}
-                                layoutId={card}
+                                layoutId={`card-${idx}`}
                                 onClick={() => handleToggleCard(card)}
                                 className={`
-                                    flex-shrink-0 w-40 h-56 rounded-lg p-3 cursor-pointer shadow-lg border-2 transition-all snap-center
+                                    flex-shrink-0 w-28 sm:w-36 h-36 sm:h-48 rounded-lg p-2 sm:p-3 
+                                    cursor-pointer shadow-lg border-2 transition-all snap-center
                                     ${selectedCards.includes(card)
-                                        ? 'bg-blue-600 text-white border-blue-400 -translate-y-4 shadow-blue-500/50'
-                                        : 'bg-white text-black border-transparent hover:bg-slate-100'}
+                                        ? 'bg-blue-600 text-white border-blue-400 -translate-y-2 shadow-blue-500/50'
+                                        : 'bg-white text-black border-transparent'}
                                 `}
                             >
-                                <p className="font-bold text-sm leading-snug select-none">{card}</p>
+                                <p className="font-bold text-xs sm:text-sm leading-snug select-none">{card}</p>
                             </motion.div>
                         ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Submitted Message */}
-            {cahPhase === 'pick' && hasSubmitted && (
-                <div className="flex items-center justify-center p-8 bg-slate-800/50 rounded-xl mb-4">
-                    <div className="text-center">
-                        <div className="text-4xl mb-2">🎉</div>
-                        <h3 className="text-xl font-bold text-white">Cards Submitted!</h3>
-                        <p className="text-slate-400">Waiting for other slowpokes...</p>
                     </div>
                 </div>
             )}
