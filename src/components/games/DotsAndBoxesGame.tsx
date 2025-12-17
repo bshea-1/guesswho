@@ -65,8 +65,20 @@ export default function DotsAndBoxesGame({
 
     return (
         <div className="flex flex-col items-center justify-center h-full w-full max-w-2xl md:max-w-4xl mx-auto p-2 sm:p-4 select-none">
+            {/* Prominent Turn Indicator */}
+            {isMyTurn && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mb-4 px-6 py-3 bg-green-500/20 border-2 border-green-500 rounded-xl text-green-400 font-bold text-lg flex items-center gap-3 animate-pulse"
+                >
+                    <span className="w-4 h-4 bg-green-400 rounded-full animate-ping" />
+                    YOUR TURN - Draw a line!
+                </motion.div>
+            )}
+
             {/* Header / Scoreboard */}
-            <div className="flex w-full justify-between items-center mb-4 sm:mb-8 bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-white/5">
+            <div className="flex w-full justify-between items-center mb-4 sm:mb-6 bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-white/5">
                 {activePlayers.map(p => {
                     const isTurn = game.turnPlayerId === p.id;
                     const score = Object.values(game.dabBoxes || {}).filter(id => id === p.id).length;
@@ -89,9 +101,9 @@ export default function DotsAndBoxesGame({
                 })}
             </div>
 
-            {/* Game Grid (SVG) - Larger on mobile */}
-            <div className="mt-2 md:mt-8 flex justify-center">
-                <svg width="340" height="340" viewBox="0 0 340 340" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none select-none w-[320px] h-[320px] sm:w-[380px] sm:h-[380px] md:w-[500px] md:h-[500px] lg:w-[560px] lg:h-[560px]">
+            {/* Game Grid (SVG) - Larger on all devices */}
+            <div className={`mt-2 md:mt-4 flex justify-center ${isMyTurn ? 'ring-4 ring-green-500/50 rounded-2xl animate-pulse' : ''}`}>
+                <svg width="340" height="340" viewBox="0 0 340 340" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none select-none w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] md:w-[520px] md:h-[520px] lg:w-[600px] lg:h-[600px]">
                     <defs>
                         <filter id="glow">
                             <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
@@ -198,10 +210,6 @@ export default function DotsAndBoxesGame({
                         ))
                     )}
                 </svg>
-            </div>
-
-            <div className="mt-8 text-center text-slate-400 text-sm">
-                {isMyTurn ? "It's your turn! Draw a line." : `Waiting for opponent...`}
             </div>
         </div>
     );

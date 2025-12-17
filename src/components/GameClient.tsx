@@ -278,8 +278,8 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 )}
 
 
-                {/* Top Bar: Status */}
-                <div className="p-2 sm:p-4 bg-slate-900/80 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-50 shrink-0">
+                {/* Top Bar: Status - More prominent turn indicator */}
+                <div className={`p-2 sm:p-4 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-50 shrink-0 transition-all duration-300 ${game.matchStatus === 'playing' && game.turnPlayerId === playerId ? 'bg-green-900/40 border-b-green-500/50' : 'bg-slate-900/80'}`}>
                     <div className="flex items-center gap-3">
                         {/* Mobile Menu Toggle & Room Code */}
                         <div className="flex items-center gap-2 md:hidden">
@@ -312,10 +312,10 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                             initial={{ y: 20, opacity: 0 }}
                                             animate={{ y: 0, opacity: 1 }}
                                             exit={{ y: -20, opacity: 0 }}
-                                            className="text-green-400 flex items-center gap-2"
+                                            className="text-green-400 flex items-center gap-2 text-lg sm:text-xl font-black"
                                         >
-                                            <span className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-pulse" />
-                                            YOUR TURN
+                                            <span className="w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded-full animate-ping" />
+                                            🎯 YOUR TURN!
                                         </motion.span> :
                                         <motion.span
                                             key="opp-turn"
@@ -325,7 +325,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                             className="text-yellow-400 flex items-center gap-2"
                                         >
                                             <span className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-400 rounded-full animate-pulse" />
-                                            OPPONENT&apos;S TURN
+                                            Waiting for opponent...
                                         </motion.span>
                                 ) : game.matchStatus === 'finished' ? (
                                     <motion.span

@@ -557,6 +557,7 @@ export default function HomeClient() {
                                         placeholder="4-CHAR CODE"
                                         maxLength={4}
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-widest uppercase font-mono focus:ring-2 focus:ring-purple-500 outline-none transition"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleJoin(mode === 'spectate')}
                                     />
                                 </div>
                                 <button onClick={() => handleJoin(mode === 'spectate')} disabled={loading} className="w-full bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-xl font-bold transition flex items-center justify-center gap-2">

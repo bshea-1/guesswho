@@ -329,21 +329,29 @@ export default function GameSidebar({
 
             {/* Chat Widget - Fixed Bottom Section */}
             <div className="h-[40%] bg-black/20 shrink-0 border-t border-white/10 flex flex-col min-h-0">
-                {/* Chat Tabs */}
-                <div className="flex border-b border-white/5 bg-slate-900/80 shrink-0">
-                    <button
-                        onClick={() => setActiveChatTab('party')}
-                        className={`flex-1 p-2 text-center text-xs font-bold cursor-pointer transition ${activeChatTab === 'party' ? 'text-yellow-400 bg-white/5 border-b-2 border-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                        PARTY CHAT
-                    </button>
-                    <button
-                        onClick={() => setActiveChatTab('game')}
-                        className={`flex-1 p-2 text-center text-xs font-bold cursor-pointer transition ${activeChatTab === 'game' ? 'text-green-400 bg-white/5 border-b-2 border-green-400' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                        GAME CHAT
-                    </button>
-                </div>
+                {/* Chat Tabs - Active players only see game chat */}
+                {!iamActive ? (
+                    <div className="flex border-b border-white/5 bg-slate-900/80 shrink-0">
+                        <button
+                            onClick={() => setActiveChatTab('party')}
+                            className={`flex-1 p-2 text-center text-xs font-bold cursor-pointer transition ${activeChatTab === 'party' ? 'text-yellow-400 bg-white/5 border-b-2 border-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            PARTY CHAT
+                        </button>
+                        <button
+                            onClick={() => setActiveChatTab('game')}
+                            className={`flex-1 p-2 text-center text-xs font-bold cursor-pointer transition ${activeChatTab === 'game' ? 'text-green-400 bg-white/5 border-b-2 border-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            GAME CHAT
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex border-b border-white/5 bg-slate-900/80 shrink-0">
+                        <div className="flex-1 p-2 text-center text-xs font-bold text-green-400 bg-white/5 border-b-2 border-green-400">
+                            GAME CHAT
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                     {displayedChat.length === 0 && (
