@@ -117,7 +117,7 @@ export default function GuessWhoGame({
 }) {
 
     return (
-        <div className="flex-1 flex flex-col h-full relative">
+        <div className="flex-1 flex flex-col h-full min-h-0 relative">
             {/* Question Display */}
             {(() => {
                 const history = [...game.history];
@@ -161,8 +161,8 @@ export default function GuessWhoGame({
                 );
             })()}
 
-            {/* Board Area */}
-            <div className="flex-1 overflow-hidden p-0 bg-slate-950/50 relative flex flex-col">
+            {/* Board Area - scrollable, takes remaining space */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-0 bg-slate-950/50 relative flex flex-col">
                 {/* If match not playing and not host overlay, show "Waiting" */}
                 {game.matchStatus === 'lobby' && !iamHost && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
@@ -191,9 +191,9 @@ export default function GuessWhoGame({
                 )}
             </div>
 
-            {/* Controls Area (Only for Active Players) */}
+            {/* Controls Area (Only for Active Players) - fixed at bottom, never cut off */}
             {iamActive && game.matchStatus === 'playing' && (
-                <div className="px-2 pt-2 bg-slate-900 border-t border-white/10 shrink-0 z-20 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+                <div className="shrink-0 px-2 pt-2 pb-4 bg-slate-900 border-t border-white/10 z-20" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
                     <GameControls game={game} playerId={playerId} />
                 </div>
             )}

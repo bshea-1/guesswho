@@ -200,7 +200,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
     };
 
     return (
-        <div className="h-[100dvh] bg-gradient-to-br from-yellow-900/20 via-slate-950 to-red-900/20 text-white flex flex-col md:flex-row overflow-hidden relative">
+        <div className="min-h-[100dvh] max-h-[100dvh] bg-gradient-to-br from-yellow-900/20 via-slate-950 to-red-900/20 text-white flex flex-col md:flex-row overflow-hidden relative">
 
             {/* (A) Mobile Sidebar Drawer */}
             <AnimatePresence>
@@ -232,7 +232,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
             </div>
 
             {/* Main Main Area */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
 
                 {/* LOBBY OVERLAY - Visible to everyone, but only host can start */}
                 {game.matchStatus === 'lobby' && (
