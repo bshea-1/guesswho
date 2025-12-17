@@ -329,8 +329,9 @@ export default function GameSidebar({
 
             {/* Chat Widget - Fixed Bottom Section */}
             <div className="h-[40%] bg-black/20 shrink-0 border-t border-white/10 flex flex-col min-h-0">
-                {/* Chat Tabs - Active players only see game chat */}
-                {!iamActive ? (
+                {/* Chat Tabs - Active players in CAH, Connect 4, and Dots & Boxes see both tabs */}
+                {/* Only Guess Who and Word Bomb players are restricted to game chat only */}
+                {!iamActive || game.gameType === 'cah' || game.gameType === 'connect-4' || game.gameType === 'dots-and-boxes' ? (
                     <div className="flex border-b border-white/5 bg-slate-900/80 shrink-0">
                         <button
                             onClick={() => setActiveChatTab('party')}
