@@ -1049,6 +1049,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             turnPlayerId: nextPlayer?.id || null,
             turnStartTime: Date.now(),
             currentTimerDuration: newTimer,
+            currentTyping: '', // Reset typing status
             history: [...state.history, {
                 playerId,
                 action: 'info',
@@ -1127,7 +1128,9 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             players: newPlayers,
             wordBombPrompt: newPrompt,
             turnPlayerId: nextPlayer?.id || null,
+            turnPlayerId: nextPlayer?.id || null,
             turnStartTime: Date.now(),
+            currentTyping: '', // Reset typing status
             history: [...state.history, {
                 playerId: 'system',
                 action: 'info',
@@ -1292,7 +1295,9 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             players: newPlayers,
             wordBombPrompt: newPrompt,
             turnPlayerId: nextPlayer?.id || null,
+            turnPlayerId: nextPlayer?.id || null,
             turnStartTime: Date.now(),
+            currentTyping: '', // Reset typing status
             currentTimerDuration: INITIAL_TIMER_SECONDS, // Reset timer for next player? Usually yes.
             history: [...state.history, {
                 playerId: 'system',
