@@ -195,10 +195,17 @@ export default function WordBombGame({
                     .then(data => !!(data && data.probability && data.probability >= 0.8))
                     .catch(() => false);
 
-                const [isDictValid, isNameValid] = await Promise.all([safeDictCheck, safeNameCheck]);
+                // Fallback: Datamuse (very robust for common words)
+                const safeDatamuseCheck = fetch(`https://api.datamuse.com/words?sp=${word}&md=d&max=1`)
+                    .then(res => res.json())
+                    .then(data => Array.isArray(data) && data.length > 0 && data[0].word.toLowerCase() === word.toLowerCase())
+                    .catch(() => false);
 
-                // If NEITHER is valid, then we reject
-                if (!isDictValid && !isNameValid) {
+
+                const [isDictValid, isNameValid, isDatamuseValid] = await Promise.all([safeDictCheck, safeNameCheck, safeDatamuseCheck]);
+
+                // If NONE are valid, then we reject
+                if (!isDictValid && !isNameValid && !isDatamuseValid) {
                     setFeedback({ type: 'error', message: 'Not a valid word!' });
                     sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
                     setSubmitting(false);
@@ -411,12 +418,12 @@ export default function WordBombGame({
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                                         placeholder="Type a word..."
-                                        disabled={submitting}
+                                        // disabled={submitting} // Removed to allowing spamming
                                         className="flex-1 bg-slate-800 border-2 border-slate-600 focus:border-purple-500 rounded-xl px-4 py-3 text-xl font-mono text-center text-white outline-none transition"
                                     />
                                     <button
                                         onClick={handleSubmit}
-                                        disabled={submitting || !inputWord.trim()}
+                                        disabled={!inputWord.trim()} // Only disable if empty
                                         className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition flex items-center gap-2"
                                         title="Send Word"
                                     >
@@ -424,7 +431,7 @@ export default function WordBombGame({
                                     </button>
                                     <button
                                         onClick={() => sendAction('FORFEIT_WORD', null)}
-                                        disabled={submitting}
+                                        // disabled={submitting}
                                         className="bg-slate-700 hover:bg-red-600 disabled:opacity-50 text-white font-bold px-4 py-3 rounded-xl transition flex items-center gap-2"
                                         title="Give Up / Skip Turn (Lose Life)"
                                     >
