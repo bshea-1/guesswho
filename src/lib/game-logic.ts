@@ -321,20 +321,34 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
         return stateWithP2;
     }
 
-    // Otherwise join as spectator
+    // Otherwise join as spectator (or queue for CAH)
+    const newPlayer = {
+        id: playerId,
+        name: playerName,
+        role: 'spectator' as const,
+        characterId: null,
+        eliminatedIds: [],
+        isReady: false,
+        wins: 0,
+    };
+
+    // For CAH: Everyone joins the queue automatically during lobby
+    if (state.gameType === 'cah' && state.matchStatus === 'lobby') {
+        return {
+            ...state,
+            players: {
+                ...state.players,
+                [playerId]: { ...newPlayer, role: 'player' }
+            },
+            queue: [...state.queue, playerId]
+        };
+    }
+
     return {
         ...state,
         players: {
             ...state.players,
-            [playerId]: {
-                id: playerId,
-                name: playerName,
-                role: 'spectator',
-                characterId: null,
-                eliminatedIds: [],
-                isReady: false,
-                wins: 0,
-            }
+            [playerId]: newPlayer
         }
     };
 }
@@ -1207,17 +1221,25 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             }
         };
 
+        // Check for game over (5 wins)
+        const CAH_WIN_THRESHOLD = 5;
+        const isGameOver = newScore >= CAH_WIN_THRESHOLD;
+
         return {
             ...state,
             players: newPlayers,
-            cahPhase: 'result',
+            cahPhase: isGameOver ? 'result' : 'result',
             cahSubmissions: state.cahSubmissions?.map(s => s.playerId === winningPlayerId ? { ...s, isWinner: true } : s),
-            winnerId: winningPlayerId, // Round winner
-            turnPlayerId: null, // No one's turn in result
+            winnerId: winningPlayerId,
+            matchStatus: isGameOver ? 'finished' : 'playing',
+            status: isGameOver ? 'lobby' : state.status,
+            turnPlayerId: null,
             history: [...state.history, {
                 playerId: 'system',
                 action: 'WIN',
-                content: `${winningPlayer.name} wins the round!`,
+                content: isGameOver
+                    ? `${winningPlayer.name} WINS THE GAME with ${newScore} points! 🏆`
+                    : `${winningPlayer.name} wins the round! (${newScore}/${CAH_WIN_THRESHOLD})`,
                 timestamp: Date.now()
             }]
         };

@@ -12,9 +12,10 @@ type Props = {
 };
 
 export default function CAHGame({ gameState, playerId, sendAction }: Props) {
-    const { cahBlackCard, cahSubmissions, cahPhase, cahCzarId, players } = gameState;
+    const { cahBlackCard, cahSubmissions, cahPhase, cahCzarId, players, matchStatus, winnerId } = gameState;
     const player = players[playerId];
     const isCzar = playerId === cahCzarId;
+    const isGameOver = matchStatus === 'finished';
 
     // Hand management
     const hand = (player?.data?.hand as string[]) || [];
@@ -159,8 +160,8 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
                 )}
             </div>
 
-            {/* Next Round Button */}
-            {cahPhase === 'result' && isCzar && (
+            {/* Next Round Button - Only show if game is NOT over */}
+            {cahPhase === 'result' && isCzar && !isGameOver && (
                 <div className="p-3 sm:p-4 border-t border-slate-800">
                     <button
                         onClick={handleNextRound}
@@ -168,6 +169,31 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
                     >
                         NEXT ROUND
                     </button>
+                </div>
+            )}
+
+            {/* Game Over Screen */}
+            {isGameOver && (
+                <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-yellow-500 p-8 rounded-2xl max-w-md w-full shadow-2xl text-center">
+                        <div className="text-6xl mb-4">🏆</div>
+                        <h2 className="text-3xl font-black text-yellow-400 mb-2">GAME OVER!</h2>
+                        <p className="text-xl text-white mb-6">
+                            {winnerId && players[winnerId] ? `${players[winnerId].name} wins with ${players[winnerId].data?.score || 0} points!` : 'Game Over!'}
+                        </p>
+                        <div className="space-y-3">
+                            <p className="text-slate-400 text-sm">Final Scores:</p>
+                            <div className="flex flex-wrap justify-center gap-4">
+                                {Object.values(players).filter(p => p.role === 'player').sort((a, b) => (b.data?.score || 0) - (a.data?.score || 0)).map(p => (
+                                    <div key={p.id} className={`px-3 py-2 rounded-lg ${p.id === winnerId ? 'bg-yellow-500/20 border border-yellow-500' : 'bg-slate-800'}`}>
+                                        <span className="font-bold">{p.name}</span>
+                                        <span className="text-slate-400 ml-2">{p.data?.score || 0}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <p className="text-slate-500 text-sm mt-6">Host can start a new game from the lobby.</p>
+                    </div>
                 </div>
             )}
 
