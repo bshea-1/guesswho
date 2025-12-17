@@ -139,23 +139,13 @@ export default function WordBombGame({
         }, 20);
     }, [sendAction]);
 
-    const validateWord = useCallback(async (word: string): Promise<boolean> => {
-        try {
-            const res = await fetch(`/api/validate-word?word=${encodeURIComponent(word)}`);
-            const data = await res.json();
-            return data.valid;
-        } catch {
-            return false;
-        }
-    }, []);
-
     const handleSubmit = useCallback(async () => {
         if (!inputWord.trim() || submitting || !myTurn) return;
 
         const word = inputWord.toLowerCase().trim();
         setSubmitting(true);
 
-        sendAction('UPDATE_TYPING', { text: `Checking "${word.toUpperCase()}"...` });
+        sendAction('UPDATE_TYPING', { text: `Sending "${word.toUpperCase()}"...` });
 
         if (!word.includes(prompt.toLowerCase())) {
             setFeedback({ type: 'error', message: `Must contain "${prompt}"!` });
@@ -164,19 +154,25 @@ export default function WordBombGame({
             return;
         }
 
-        const isValid = await validateWord(word);
-        if (!isValid) {
-            setFeedback({ type: 'error', message: `"${word}" is not a valid word!` });
-            sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - not in dictionary` });
-            setSubmitting(false);
-            return;
+        // Dictionary validation
+        try {
+            const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+            if (!res.ok) {
+                setFeedback({ type: 'error', message: 'Not a valid word!' });
+                sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
+                setSubmitting(false);
+                return;
+            }
+        } catch (error) {
+            console.error('Dictionary check failed', error);
+            // If API fails, we'll let it pass to not block the game, but log it.
         }
 
         await sendAction('SUBMIT_WORD', { word });
         setInputWord('');
         setFeedback({ type: 'success', message: 'Word accepted!' });
         setSubmitting(false);
-    }, [inputWord, submitting, myTurn, prompt, validateWord, sendAction]);
+    }, [inputWord, submitting, myTurn, prompt, sendAction]);
 
     const handleJoinNextRound = () => {
         sendAction('JOIN_NEXT_ROUND', null);
@@ -258,19 +254,12 @@ export default function WordBombGame({
                                 {p.name}
                             </span>
                             <div className="flex gap-0.5">
-                                {Array.from({ length: 3 }).map((_, i) => {
+                                {Array.from({ length: Math.max(2, pData.lives || 0) }).map((_, i) => {
                                     // Logic for lives:
-                                    // If lives=3 (Golden Heart active), 3rd heart is Gold.
-                                    // If lives=2 (Standard Max), show 2 red hearts.
-                                    // If we are showing 'slots', usually we show max possible?
-                                    // Let's show currently possessed lives.
-                                    // Actually, standard UI shows "slots" often.
-                                    // Let's just map up to max lives or fixed 3? 
-                                    // Fixed 3 is safe since max is 3.
+                                    // 1st/2nd are standard. 3rd is Golden Heart (only show if present)
                                     const hasLife = i < (pData.lives ?? 0);
                                     const isGolden = i === 2 && hasLife; // 3rd heart is gold
 
-                                    // If hasLife is false, show empty slot
                                     return (
                                         <Heart
                                             key={i}
@@ -416,7 +405,7 @@ export default function WordBombGame({
                             <div className="mt-8 flex items-center gap-2 text-slate-400">
                                 <span>Your lives:</span>
                                 <div className="flex gap-1">
-                                    {Array.from({ length: 3 }).map((_, i) => {
+                                    {Array.from({ length: Math.max(2, myLives) }).map((_, i) => {
                                         const iHasLife = i < myLives;
                                         const isGold = i === 2 && iHasLife;
                                         return (
