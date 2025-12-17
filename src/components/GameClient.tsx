@@ -278,8 +278,8 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 )}
 
 
-                {/* Top Bar: Status - More prominent turn indicator */}
-                <div className={`p-2 sm:p-4 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-50 shrink-0 transition-all duration-300 ${game.matchStatus === 'playing' && game.turnPlayerId === playerId ? 'bg-green-900/40 border-b-green-500/50' : 'bg-slate-900/80'}`}>
+                {/* Top Bar: Status */}
+                <div className="p-2 sm:p-4 bg-slate-900/80 border-b border-white/10 flex justify-between items-center backdrop-blur-md z-50 shrink-0">
                     <div className="flex items-center gap-3">
                         {/* Mobile Menu Toggle & Room Code */}
                         <div className="flex items-center gap-2 md:hidden">

@@ -102,7 +102,7 @@ export default function DotsAndBoxesGame({
             </div>
 
             {/* Game Grid (SVG) - Larger on all devices */}
-            <div className={`mt-2 md:mt-4 flex justify-center ${isMyTurn ? 'ring-4 ring-green-500/50 rounded-2xl animate-pulse' : ''}`}>
+            <div className="mt-2 md:mt-4 flex justify-center">
                 <svg width="340" height="340" viewBox="0 0 340 340" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none select-none w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] md:w-[520px] md:h-[520px] lg:w-[600px] lg:h-[600px]">
                     <defs>
                         <filter id="glow">
