@@ -53,7 +53,7 @@ export default function DotsAndBoxesGame({
     };
 
     return (
-        <div className="flex flex-col items-center justify-center h-full w-full max-w-lg mx-auto p-4 select-none">
+        <div className="flex flex-col items-center justify-center h-full w-full max-w-2xl md:max-w-4xl mx-auto p-4 select-none">
             {/* Header / Scoreboard */}
             <div className="flex w-full justify-between items-center mb-8 bg-slate-900/50 p-4 rounded-xl border border-white/5">
                 {Object.values(game.players)
@@ -77,8 +77,8 @@ export default function DotsAndBoxesGame({
             </div>
 
             {/* Game Grid (SVG) */}
-            <div className="mt-4">
-                <svg width="340" height="340" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none select-none">
+            <div className="mt-4 md:mt-8 flex justify-center">
+                <svg width="340" height="340" viewBox="0 0 340 340" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none select-none w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] md:w-[480px] md:h-[480px] lg:w-[560px] lg:h-[560px]">
                     <defs>
                         <filter id="glow">
                             <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />

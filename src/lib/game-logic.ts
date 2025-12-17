@@ -1252,7 +1252,6 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         };
     }
 
-    return state;
     // --- CAH ACTIONS ---
     if (type === 'SUBMIT_CARDS') {
         if (state.gameType !== 'cah') throw new Error('Invalid game type');
