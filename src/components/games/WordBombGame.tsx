@@ -161,6 +161,7 @@ export default function WordBombGame({
         }
 
         // 2-Letter Word Check (Static Allowlist)
+        // 2-Letter Word Check (Static Allowlist)
         if (word.length === 2) {
             const VALID_TWO_LETTER_WORDS = new Set([
                 'aa', 'ab', 'ad', 'ae', 'ag', 'ah', 'ai', 'al', 'am', 'an', 'ar', 'as', 'at', 'aw', 'ax', 'ay',
@@ -178,11 +179,10 @@ export default function WordBombGame({
                 setSubmitting(false);
                 return;
             }
-            // If valid 2-letter word, skip API check and submit directly!
-        } else {
-            // Length >= 3, proceed to API checks
+        }
 
-
+        // 3+ Letter Word Check (API)
+        if (word.length >= 3) {
             // Dictionary & Name check (Parallel + Robust Error Handling)
             try {
                 // Helper to catch individual network errors so we don't abort the whole flow
@@ -213,12 +213,13 @@ export default function WordBombGame({
                 setSubmitting(false);
                 return;
             }
+        }
 
-            await sendAction('SUBMIT_WORD', { word });
-            setInputWord('');
-            setFeedback({ type: 'success', message: 'Word accepted!' });
-            setSubmitting(false);
-        }, [inputWord, submitting, myTurn, prompt, sendAction]);
+        await sendAction('SUBMIT_WORD', { word });
+        setInputWord('');
+        setFeedback({ type: 'success', message: 'Word accepted!' });
+        setSubmitting(false);
+    }, [inputWord, submitting, myTurn, prompt, sendAction]);
 
     const handleJoinNextRound = () => {
         sendAction('JOIN_NEXT_ROUND', null);
