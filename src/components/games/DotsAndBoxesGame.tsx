@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { GameState } from '@/lib/types';
 import { motion } from 'framer-motion';
 
-// 3x3 Grid = 4x4 Dots
-const GRID_SIZE = 3;
+// 5x5 Grid = 6x6 Dots
+const GRID_SIZE = 5;
 const DOTS = 4;
 
 export default function DotsAndBoxesGame({
@@ -76,41 +76,9 @@ export default function DotsAndBoxesGame({
                     })}
             </div>
 
-            {/* Game Grid */}
-            <div className="relative bg-slate-900 rounded-xl p-8 shadow-2xl border border-slate-700">
-                <div
-                    className="grid relative"
-                    style={{
-                        display: 'grid',
-                        gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-                        gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-                        width: '300px',
-                        height: '300px'
-                    }}
-                >
-                    {/* Render Boxes (Backgrounds) */}
-                    {Array.from({ length: GRID_SIZE }).map((_, r) =>
-                        Array.from({ length: GRID_SIZE }).map((_, c) => (
-                            <div key={`box-${r}-${c}`} className="relative border border-transparent w-full h-full">
-                                {renderBox(r, c)}
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                {/* Render Lines & Dots Layer (Absolute Overlay) */}
-                <div className="absolute inset-0 pointer-events-none p-8" style={{ width: '100%', height: '100%' }}>
-                    {/* We need to manually position SVG or Divs for lines and dots */}
-                    {/* Actually, easier to use a grid of cells and utilize gaps/borders? 
-                         No, standard approach is SVG overlay or absolute divs. 
-                         Let's use absolute divs calculated by percentage. 
-                     */}
-                </div>
-            </div>
-
-            {/* Alternative Render Strategy: SVG for everything */}
+            {/* Game Grid (SVG) */}
             <div className="mt-4">
-                <svg width="320" height="320" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none">
+                <svg width="340" height="340" className="bg-slate-900/50 rounded-xl shadow-2xl touch-none select-none">
                     <defs>
                         <filter id="glow">
                             <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
@@ -131,13 +99,13 @@ export default function DotsAndBoxesGame({
                             return (
                                 <rect
                                     key={`box-${r}-${c}`}
-                                    x={40 + c * 80 + 10}
-                                    y={40 + r * 80 + 10}
-                                    width={60}
-                                    height={60}
-                                    rx={8}
+                                    x={40 + c * 50 + 5}
+                                    y={40 + r * 50 + 5}
+                                    width={40}
+                                    height={40}
+                                    rx={6}
                                     fill={color}
-                                    fillOpacity={0.5}
+                                    fillOpacity={0.6}
                                 />
                             );
                         })
@@ -156,16 +124,16 @@ export default function DotsAndBoxesGame({
                                     onMouseLeave={() => setHoverLine(null)}
                                     style={{ cursor: isDrawn ? 'default' : 'pointer', pointerEvents: 'all' }}>
                                     {/* Hitbox */}
-                                    <rect x={40 + c * 80} y={25 + r * 80} width={80} height={30} fill="transparent" />
+                                    <rect x={40 + c * 50} y={30 + r * 50} width={50} height={20} fill="transparent" />
                                     {/* Visible Line */}
                                     <rect
-                                        x={40 + c * 80 + 5}
-                                        y={36 + r * 80}
-                                        width={70}
-                                        height={8}
-                                        rx={4}
+                                        x={40 + c * 50 + 5}
+                                        y={38 + r * 50}
+                                        width={40}
+                                        height={4}
+                                        rx={2}
                                         fill={isDrawn ? '#e2e8f0' : (isHover && isMyTurn ? '#cbd5e1' : '#334155')}
-                                        fillOpacity={isDrawn ? 1 : (isHover && isMyTurn ? 0.5 : 0.2)}
+                                        fillOpacity={isDrawn ? 1 : (isHover && isMyTurn ? 0.8 : 0.3)}
                                         className="transition-all duration-200"
                                     />
                                 </g>
@@ -186,16 +154,16 @@ export default function DotsAndBoxesGame({
                                     onMouseLeave={() => setHoverLine(null)}
                                     style={{ cursor: isDrawn ? 'default' : 'pointer', pointerEvents: 'all' }}>
                                     {/* Hitbox */}
-                                    <rect x={25 + c * 80} y={40 + r * 80} width={30} height={80} fill="transparent" />
+                                    <rect x={30 + c * 50} y={40 + r * 50} width={20} height={50} fill="transparent" />
                                     {/* Visible Line */}
                                     <rect
-                                        x={36 + c * 80}
-                                        y={40 + r * 80 + 5}
-                                        width={8}
-                                        height={70}
-                                        rx={4}
+                                        x={38 + c * 50}
+                                        y={40 + r * 50 + 5}
+                                        width={4}
+                                        height={40}
+                                        rx={2}
                                         fill={isDrawn ? '#e2e8f0' : (isHover && isMyTurn ? '#cbd5e1' : '#334155')}
-                                        fillOpacity={isDrawn ? 1 : (isHover && isMyTurn ? 0.5 : 0.2)}
+                                        fillOpacity={isDrawn ? 1 : (isHover && isMyTurn ? 0.8 : 0.3)}
                                         className="transition-all duration-200"
                                     />
                                 </g>
@@ -204,13 +172,13 @@ export default function DotsAndBoxesGame({
                     )}
 
                     {/* Dots */}
-                    {Array.from({ length: 4 }).map((_, r) =>
-                        Array.from({ length: 4 }).map((_, c) => (
+                    {Array.from({ length: GRID_SIZE + 1 }).map((_, r) =>
+                        Array.from({ length: GRID_SIZE + 1 }).map((_, c) => (
                             <circle
                                 key={`dot-${r}-${c}`}
-                                cx={40 + c * 80}
-                                cy={40 + r * 80}
-                                r={8}
+                                cx={40 + c * 50}
+                                cy={40 + r * 50}
+                                r={6}
                                 fill="#ffffff"
                                 className="drop-shadow-lg"
                             />

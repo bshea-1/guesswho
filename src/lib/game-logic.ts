@@ -1454,7 +1454,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         // Helper to check if a box is completed
         // Box "r-c" needs: h-r-c, h-(r+1)-c, v-r-c, v-r-(c+1)
         const checkCompletion = (r: number, c: number): boolean => {
-            if (r < 0 || c < 0 || r >= 3 || c >= 3) return false;
+            if (r < 0 || c < 0 || r >= 5 || c >= 5) return false;
             if (newBoxes[`${r}-${c}`]) return false; // Already owned
 
             const top = newLines.includes(`h-${r}-${c}`);
@@ -1512,7 +1512,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
 
         const players = { ...state.players };
 
-        if (totalBoxesOwned === 9) {
+        if (totalBoxesOwned === 25) {
             matchStatus = 'finished';
             // Count scores
             const p1 = Object.values(players).find(p => p.role === 'player' && p.characterId === 'red');
