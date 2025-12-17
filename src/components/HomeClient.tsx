@@ -507,7 +507,7 @@ export default function HomeClient() {
 
                                     <button
                                         onClick={() => handleGameSelect('cah')}
-                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-black transition group text-left"
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-white transition group text-left"
                                     >
                                         <div className="p-3 bg-slate-900 rounded-lg text-white group-hover:text-slate-200 border border-slate-700">
                                             <Skull size={24} />
