@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,6 +12,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover", // Extends background behind the notch
+};
+
 export const metadata: Metadata = {
   title: "Skibidi.Games",
   description: "Play classic games like Guess Who, Connect 4, and Word Bomb online with friends!",
@@ -20,12 +29,11 @@ export const metadata: Metadata = {
     icon: "/icon-512.png",
     apple: "/icon-512.png",
   },
-  other: {
-    "theme-color": "#0f172a",
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "apple-mobile-web-app-title": "Skibidi.Games"
-  }
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Skibidi.Games",
+  },
 };
 
 export default function RootLayout({
