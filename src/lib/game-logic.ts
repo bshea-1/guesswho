@@ -1128,7 +1128,6 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             players: newPlayers,
             wordBombPrompt: newPrompt,
             turnPlayerId: nextPlayer?.id || null,
-            turnPlayerId: nextPlayer?.id || null,
             turnStartTime: Date.now(),
             currentTyping: '', // Reset typing status
             history: [...state.history, {
@@ -1294,7 +1293,6 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             ...state,
             players: newPlayers,
             wordBombPrompt: newPrompt,
-            turnPlayerId: nextPlayer?.id || null,
             turnPlayerId: nextPlayer?.id || null,
             turnStartTime: Date.now(),
             currentTyping: '', // Reset typing status
