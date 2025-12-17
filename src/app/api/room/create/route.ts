@@ -4,8 +4,8 @@ import { CreateRoomSchema, sanitizeName } from '@/lib/validation';
 import { createInitialGameState } from '@/lib/game-logic';
 import { gameStorage } from '@/lib/storage';
 
-// Short ID generator (6 chars, ambiguous removed)
-const nanoid = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 6);
+// Short ID generator (4 chars, ambiguous removed)
+const nanoid = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 4);
 
 export async function POST(req: Request) {
     try {

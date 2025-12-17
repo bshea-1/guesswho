@@ -517,6 +517,19 @@ export default function HomeClient() {
                                             <div className="text-sm text-slate-400">The party game for horrible people</div>
                                         </div>
                                     </button>
+
+                                    <button
+                                        onClick={() => handleGameSelect('dots-and-boxes')}
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-teal-900/40 p-4 rounded-xl border border-slate-700 hover:border-teal-500 transition group text-left"
+                                    >
+                                        <div className="p-3 bg-teal-500/20 rounded-lg text-teal-400 group-hover:text-teal-300">
+                                            <Grid3X3 size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white">Dots & Boxes</div>
+                                            <div className="text-sm text-slate-400">Classic strategy game (2 Players)</div>
+                                        </div>
+                                    </button>
                                 </div>
                                 <button onClick={() => setMode(null)} className="w-full text-slate-500 text-sm hover:text-white pt-2">Cancel</button>
                             </div>
@@ -529,8 +542,8 @@ export default function HomeClient() {
                                     <input
                                         value={roomCode}
                                         onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                                        placeholder="6-CHAR CODE"
-                                        maxLength={6}
+                                        placeholder="4-CHAR CODE"
+                                        maxLength={4}
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white text-center tracking-widest uppercase font-mono focus:ring-2 focus:ring-purple-500 outline-none transition"
                                     />
                                 </div>

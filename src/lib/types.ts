@@ -14,7 +14,7 @@ export type Player = {
 };
 
 
-export type GameType = 'guess-who' | 'word-bomb' | 'connect-4' | 'cah';
+export type GameType = 'guess-who' | 'word-bomb' | 'connect-4' | 'cah' | 'dots-and-boxes';
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
@@ -55,6 +55,10 @@ export type GameState = {
     cahSubmissions?: { playerId: string; cards: string[]; isWinner?: boolean; }[];
     cahPhase?: 'pick' | 'judge' | 'result';
     cahCzarId?: string; // Player ID of the Card Czar
+
+    // Dots and Boxes Specific State
+    dabLines?: string[]; // Array of line IDs e.g. "v-0-0" (vertical, row, col) or "h-0-0" (horizontal)
+    dabBoxes?: Record<string, string>; // Map of "r-c" box coords to owner player ID
 
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];

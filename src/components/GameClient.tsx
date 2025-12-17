@@ -14,6 +14,7 @@ import GuessWhoGame from '@/components/games/GuessWhoGame';
 import Connect4Game from '@/components/games/Connect4Game';
 import WordBombGame from '@/components/games/WordBombGame';
 import CAHGame from '@/components/games/CAHGame';
+import DotsAndBoxesGame from '@/components/games/DotsAndBoxesGame';
 
 export default function GameClient({ roomId }: { roomId: string }) {
     const router = useRouter();
@@ -387,6 +388,12 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 ) : game.gameType === 'cah' ? (
                     <CAHGame
                         gameState={game}
+                        playerId={playerId!}
+                        sendAction={sendAction}
+                    />
+                ) : game.gameType === 'dots-and-boxes' ? (
+                    <DotsAndBoxesGame
+                        game={game}
                         playerId={playerId!}
                         sendAction={sendAction}
                     />
