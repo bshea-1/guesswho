@@ -200,7 +200,16 @@ export default function WordBombGame({
             }
         }
 
-        await sendAction('SUBMIT_WORD', { word });
+        const result = await sendAction('SUBMIT_WORD', { word });
+
+        // Check if server accepted the word
+        if (result?.error) {
+            setFeedback({ type: 'error', message: result.error || 'Word rejected!' });
+            sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - ${result.error || 'Rejected'}` });
+            setSubmitting(false);
+            return;
+        }
+
         setInputWord('');
         setFeedback({ type: 'success', message: 'Word accepted!' });
         setSubmitting(false);
