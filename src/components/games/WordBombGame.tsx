@@ -154,6 +154,13 @@ export default function WordBombGame({
             return;
         }
 
+        if (word.length < 3) {
+            setFeedback({ type: 'error', message: 'Too short! (Min 3 letters)' });
+            sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Too Short` });
+            setSubmitting(false);
+            return;
+        }
+
         // Dictionary & Name check (Parallel + Robust Error Handling)
         try {
             // Helper to catch individual network errors so we don't abort the whole flow
