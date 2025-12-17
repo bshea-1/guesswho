@@ -154,18 +154,27 @@ export default function WordBombGame({
             return;
         }
 
-        // Dictionary validation
+        // Dictionary check
         try {
             const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
             if (!res.ok) {
-                setFeedback({ type: 'error', message: 'Not a valid word!' });
-                sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
-                setSubmitting(false);
-                return;
+                // If dictionary fails, check if it's a name
+                const nameRes = await fetch(`https://api.genderize.io?name=${word}`);
+                const nameData = await nameRes.json();
+
+                // If checking for name fails or probability is low, reject
+                if (!nameData || !nameData.probability || nameData.probability < 0.8) {
+                    setFeedback({ type: 'error', message: 'Not a valid word!' });
+                    sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
+                    setSubmitting(false);
+                    return;
+                }
             }
         } catch (error) {
-            console.error('Dictionary check failed', error);
-            // If API fails, we'll let it pass to not block the game, but log it.
+            console.error('Validation check failed', error);
+            // If validation completely errors out (network), we might want to be permissive
+            // BUT for now, let's just log it and maybe allow it to prevent blocking play?
+            // "fail open" is usually better for games if APIs go down
         }
 
         await sendAction('SUBMIT_WORD', { word });
@@ -317,7 +326,7 @@ export default function WordBombGame({
                         >
                             <Bomb size={120} className={`${timerColor} ${timerScale}`} />
                             {/* Centered Number: Bomb icon is slightly top-heavy due to fuse. Adjust top % to visually center. */}
-                            <div className={`absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 font-black text-3xl ${timerColor}`}>
+                            <div className={`absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 font-black text-3xl ${timerColor}`}>
                                 {Math.ceil(timeLeft)}
                             </div>
                         </motion.div>
