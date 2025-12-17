@@ -355,6 +355,12 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         iamHost={iamHost}
                         sendAction={sendAction}
                     />
+                ) : game.gameType === 'cah' ? (
+                    <CAHGame
+                        gameState={game}
+                        playerId={playerId!}
+                        sendAction={sendAction}
+                    />
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-red-500">Unknown Game Type</div>
                 )}

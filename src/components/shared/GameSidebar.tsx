@@ -85,7 +85,8 @@ export default function GameSidebar({
                     <h2 className="font-bold text-xl text-yellow-400">
                         {game.gameType === 'word-bomb' ? 'Word Bomb' :
                             game.gameType === 'connect-4' ? 'Connect 4' :
-                                'Guess Who'}
+                                game.gameType === 'cah' ? 'Cards Against Humanity' :
+                                    'Guess Who'}
                     </h2>
                     <div className="flex items-center gap-1">
                         {iamHost && (
