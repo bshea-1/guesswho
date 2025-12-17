@@ -488,15 +488,18 @@ export default function HomeClient() {
                                     </button>
 
                                     <button
-                                        onClick={() => handleGameSelect('word-bomb')}
-                                        className="flex items-center gap-4 bg-slate-800 hover:bg-orange-900/40 p-4 rounded-xl border border-slate-700 hover:border-orange-500 transition group text-left"
+                                        disabled
+                                        className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700 transition group text-left opacity-60 cursor-not-allowed"
                                     >
-                                        <div className="p-3 bg-orange-500/20 rounded-lg text-orange-400 group-hover:text-orange-300">
+                                        <div className="p-3 bg-orange-500/20 rounded-lg text-orange-400">
                                             <Dices size={24} />
                                         </div>
-                                        <div>
+                                        <div className="flex-1">
                                             <div className="font-bold text-white">Word Bomb</div>
                                             <div className="text-sm text-slate-400">Fast-paced word game</div>
+                                        </div>
+                                        <div className="text-xs font-bold text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">
+                                            Coming Soon
                                         </div>
                                     </button>
 
