@@ -375,7 +375,7 @@ export default function HomeClient() {
             >
                 <div className="text-center">
                     <h1 className="text-5xl font-black bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">
-                        SKIBIDI GAMES
+                        Skibidi.Games
                     </h1>
                 </div>
 
