@@ -1638,22 +1638,22 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         let history = state.history;
 
         if (boxesCompleted > 0) {
-            // Player gets another turn!
+            // Log the chain
             history = [...history, {
                 playerId: 'system',
                 action: 'info',
                 content: `${state.players[playerId].name} claimed ${boxesCompleted} box(es)${boxesCompleted > 1 ? ' (Chain!)' : ''}!`,
                 timestamp: Date.now()
             }];
-        } else {
-            // Switch turn
-            const activeIds = Object.values(state.players)
-                .filter(p => p.role === 'player')
-                .map(p => p.id);
-            const currentIdx = activeIds.indexOf(playerId);
-            const nextId = activeIds[(currentIdx + 1) % activeIds.length];
-            turnPlayerId = nextId;
         }
+
+        // Always switch turn after a move (regardless of boxes completed)
+        const activeIds = Object.values(state.players)
+            .filter(p => p.role === 'player')
+            .map(p => p.id);
+        const currentIdx = activeIds.indexOf(playerId);
+        const nextId = activeIds[(currentIdx + 1) % activeIds.length];
+        turnPlayerId = nextId;
 
         const players = { ...state.players };
 
