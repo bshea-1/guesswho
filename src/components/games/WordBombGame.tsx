@@ -378,19 +378,20 @@ export default function WordBombGame({
                             ) : isEliminated ? (
                                 <div className="text-xl font-bold text-red-400">You're eliminated - spectating</div>
                             ) : (
-                                <div className="text-xl text-slate-400">
-                                    <span className="text-yellow-400 font-bold">{currentPlayer?.name}</span> is typing...
-                                </div>
-                            )}
-
-                            {!myTurn && typingText && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="mt-3 text-2xl font-mono text-white bg-slate-800 px-6 py-3 rounded-xl inline-block"
-                                >
-                                    {typingText || '...'}
-                                </motion.div>
+                                <>
+                                    <div className="text-xl text-slate-400">
+                                        <span className="text-yellow-400 font-bold">{currentPlayer?.name}</span> is typing...
+                                    </div>
+                                    {/* Real-time typing display */}
+                                    <motion.div
+                                        key={typingText || 'empty'}
+                                        initial={{ opacity: 0.5 }}
+                                        animate={{ opacity: 1 }}
+                                        className="mt-3 text-2xl font-mono text-white bg-slate-800 px-6 py-3 rounded-xl inline-block min-w-[200px] min-h-[52px]"
+                                    >
+                                        {typingText || <span className="text-slate-500">...</span>}
+                                    </motion.div>
+                                </>
                             )}
                         </div>
 
