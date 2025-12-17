@@ -539,7 +539,7 @@ export default function HomeClient() {
 
             {/* Footer Credit */}
             <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-slate-600 text-sm">
-                Site made by Brennan Shea
+                Made by Brennan Shea
             </p>
         </div>
     );
