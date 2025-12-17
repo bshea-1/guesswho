@@ -52,6 +52,52 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, ended: true });
         }
 
+        // SERVER-SIDE DICTIONARY VALIDATION for Word Bomb
+        if (type === 'SUBMIT_WORD' && game.gameType === 'word-bomb') {
+            const word = (payload?.word || '').toLowerCase().trim();
+
+            // Length validation
+            if (word.length < 2) {
+                return NextResponse.json({ error: 'Word too short' }, { status: 400 });
+            }
+
+            // 2-Letter word validation (static allowlist)
+            if (word.length === 2) {
+                const VALID_TWO_LETTER_WORDS = new Set([
+                    'aa', 'ab', 'ad', 'ae', 'ag', 'ah', 'ai', 'al', 'am', 'an', 'ar', 'as', 'at', 'aw', 'ax', 'ay',
+                    'ba', 'be', 'bi', 'bo', 'by', 'de', 'do', 'ed', 'ef', 'eh', 'el', 'em', 'en', 'er', 'es', 'et', 'ex',
+                    'fa', 'fe', 'go', 'ha', 'he', 'hi', 'ho', 'id', 'if', 'in', 'is', 'it', 'jo', 'ka', 'ki',
+                    'la', 'li', 'lo', 'ma', 'me', 'mi', 'mm', 'mo', 'mu', 'my', 'na', 'ne', 'no', 'nu',
+                    'od', 'oe', 'of', 'oh', 'oi', 'ok', 'om', 'on', 'op', 'or', 'os', 'ow', 'ox', 'oy',
+                    'pa', 'pe', 'pi', 'po', 'qi', 're', 'sh', 'si', 'so', 'ta', 'te', 'ti', 'to',
+                    'uh', 'um', 'un', 'up', 'us', 'ut', 'we', 'wo', 'xi', 'xu', 'ya', 'ye', 'yo', 'za'
+                ]);
+                if (!VALID_TWO_LETTER_WORDS.has(word)) {
+                    return NextResponse.json({ error: 'Invalid 2-letter word' }, { status: 400 });
+                }
+            }
+
+            // 3+ Letter word validation (dictionary API)
+            if (word.length >= 3) {
+                try {
+                    // Call our own validate-word API internally
+                    const baseUrl = process.env.VERCEL_URL
+                        ? `https://${process.env.VERCEL_URL}`
+                        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+                    const validateRes = await fetch(`${baseUrl}/api/validate-word?word=${encodeURIComponent(word)}`);
+                    const validateData = await validateRes.json();
+
+                    if (!validateData.valid) {
+                        return NextResponse.json({ error: 'Not a valid dictionary word' }, { status: 400 });
+                    }
+                } catch (validationError) {
+                    console.error('Dictionary validation failed:', validationError);
+                    return NextResponse.json({ error: 'Word validation failed' }, { status: 500 });
+                }
+            }
+        }
+
         let newState;
         try {
             newState = processAction(game, { playerId, type, payload });
