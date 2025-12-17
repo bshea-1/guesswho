@@ -13,7 +13,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE' | 'TRANSFER_HOST' | 'LEAVE_PARTY';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -769,6 +769,56 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             ...state,
             queue: newQueue,
             players: newPlayers
+        };
+    }
+
+    if (type === 'TRANSFER_HOST') {
+        if (state.hostId !== playerId) throw new Error('Only host can transfer crown');
+        const targetId = payload?.targetId;
+        if (!targetId || !state.players[targetId]) throw new Error('Invalid target');
+
+        return {
+            ...state,
+            hostId: targetId,
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `Host transferred to ${state.players[targetId].name}`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    if (type === 'LEAVE_PARTY') {
+        // Remove player from players and queue
+        const newPlayers = { ...state.players };
+        delete newPlayers[playerId];
+
+        const newQueue = state.queue.filter(id => id !== playerId);
+
+        // If host leaves, assign new host randomly or end?
+        let newHostId = state.hostId;
+        if (state.hostId === playerId) {
+            const remainingIds = Object.keys(newPlayers);
+            if (remainingIds.length > 0) {
+                newHostId = remainingIds[0]; // Just pick first available
+            } else {
+                // No one left, party effectively dead (handled by server cleanup usually)
+                newHostId = '';
+            }
+        }
+
+        return {
+            ...state,
+            players: newPlayers,
+            queue: newQueue,
+            hostId: newHostId,
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `${state.players[playerId]?.name || 'Unknown'} left the party`,
+                timestamp: Date.now()
+            }]
         };
     }
 

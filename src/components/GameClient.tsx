@@ -29,10 +29,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleLeaveParty = () => {
-        // Don't clear the game - keep it cached so user can rejoin
-        router.push('/');
-    };
+
 
     // Initial Fetch & Subscribe
     useEffect(() => {
@@ -126,6 +123,15 @@ export default function GameClient({ roomId }: { roomId: string }) {
         const data = await res.json();
         return data;
     }, [roomId, playerId]);
+
+    const handleLeaveParty = async () => {
+        try {
+            await sendAction('LEAVE_PARTY', null);
+        } catch (e) {
+            console.error('Failed to leave party cleanly:', e);
+        }
+        router.push('/');
+    };
 
     // Auto-Queue Next Match
     useEffect(() => {

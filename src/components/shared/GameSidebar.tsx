@@ -39,6 +39,7 @@ export default function GameSidebar({
     onClose?: () => void;
 }) {
     const [activeTab, setActiveTab] = useState<'participants' | 'queue'>('participants');
+    const [showTransferModal, setShowTransferModal] = useState(false);
     const { setGame } = useGameStore();
 
     const [pendingMessages, setPendingMessages] = useState<any[]>([]);
@@ -90,20 +91,29 @@ export default function GameSidebar({
                     </h2>
                     <div className="flex items-center gap-1">
                         {iamHost && (
-                            <button
-                                onClick={async () => {
-                                    if (confirm('End this party? Everyone will be disconnected.')) {
-                                        const res = await sendAction('END_PARTY', null);
-                                        if (res && res.success) {
-                                            handleLeaveParty();
+                            <>
+                                <button
+                                    onClick={() => setShowTransferModal(true)}
+                                    className="p-2 text-yellow-400 hover:text-yellow-300 rounded-lg hover:bg-yellow-900/30 transition"
+                                    title="Transfer Host"
+                                >
+                                    <Crown size={18} />
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (confirm('End this party? Everyone will be disconnected.')) {
+                                            const res = await sendAction('END_PARTY', null);
+                                            if (res && res.success) {
+                                                handleLeaveParty();
+                                            }
                                         }
-                                    }
-                                }}
-                                className="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-900/30 transition"
-                                title="End Party"
-                            >
-                                <LogOut size={18} />
-                            </button>
+                                    }}
+                                    className="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-900/30 transition"
+                                    title="End Party"
+                                >
+                                    <LogOut size={18} />
+                                </button>
+                            </>
                         )}
                         <button
                             onClick={handleLeaveParty}
@@ -114,6 +124,47 @@ export default function GameSidebar({
                         </button>
                     </div>
                 </div>
+
+                {/* Transfer Host Modal */}
+                {showTransferModal && (
+                    <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col p-4 animate-in fade-in duration-200">
+                        <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
+                            <h3 className="font-bold text-lg text-yellow-400 flex items-center gap-2">
+                                <Crown size={20} /> Select New Host
+                            </h3>
+                            <button
+                                onClick={() => setShowTransferModal(false)}
+                                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-2">
+                            {Object.values(game.players).filter(p => p.id !== playerId).length === 0 ? (
+                                <p className="text-center text-slate-500 italic mt-10">No other players available.</p>
+                            ) : (
+                                Object.values(game.players)
+                                    .filter(p => p.id !== playerId)
+                                    .sort((a, b) => a.name.localeCompare(b.name))
+                                    .map(p => (
+                                        <button
+                                            key={p.id}
+                                            onClick={async () => {
+                                                if (confirm(`Make ${p.name} the new host?`)) {
+                                                    await sendAction('TRANSFER_HOST', { targetId: p.id });
+                                                    setShowTransferModal(false);
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/5 transition group"
+                                        >
+                                            <span className="font-bold text-slate-200 group-hover:text-white">{p.name}</span>
+                                            <span className="text-xs text-slate-500 group-hover:text-yellow-500 uppercase font-bold tracking-wider">Promote</span>
+                                        </button>
+                                    ))
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Info Bar */}
                 <div className="flex items-center justify-between text-sm bg-slate-900/50 p-2 rounded-lg border border-white/5 mb-4">
