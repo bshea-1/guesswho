@@ -77,23 +77,44 @@ export async function POST(req: Request) {
                 }
             }
 
-            // 3+ Letter word validation (dictionary API)
+            // 3+ Letter word validation (direct external API calls)
             if (word.length >= 3) {
                 try {
-                    // Call our own validate-word API internally
-                    const baseUrl = process.env.VERCEL_URL
-                        ? `https://${process.env.VERCEL_URL}`
-                        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                    // Common words that APIs might miss
+                    const COMMON_WORDS = new Set([
+                        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had',
+                        'her', 'was', 'one', 'our', 'out', 'has', 'his', 'how', 'its', 'may',
+                        'new', 'now', 'old', 'see', 'way', 'who', 'did', 'get', 'got', 'him',
+                        'let', 'put', 'say', 'she', 'too', 'use', 'dad', 'mom', 'yes', 'yet'
+                    ]);
 
-                    const validateRes = await fetch(`${baseUrl}/api/validate-word?word=${encodeURIComponent(word)}`);
-                    const validateData = await validateRes.json();
+                    if (COMMON_WORDS.has(word)) {
+                        // Skip external validation for very common words
+                    } else {
+                        // Try Dictionary API first
+                        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
 
-                    if (!validateData.valid) {
-                        return NextResponse.json({ error: 'Not a valid dictionary word' }, { status: 400 });
+                        if (!dictRes.ok) {
+                            // Dictionary API failed, try Wiktionary
+                            const wikiRes = await fetch(`https://en.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&format=json`);
+                            const wikiData = await wikiRes.json();
+
+                            const pages = wikiData.query?.pages;
+                            if (pages) {
+                                const pageId = Object.keys(pages)[0];
+                                if (pageId === '-1' || pages[pageId].missing) {
+                                    return NextResponse.json({ error: 'Not a valid dictionary word' }, { status: 400 });
+                                }
+                            } else {
+                                return NextResponse.json({ error: 'Not a valid dictionary word' }, { status: 400 });
+                            }
+                        }
+                        // If dictRes.ok, word is valid
                     }
                 } catch (validationError) {
                     console.error('Dictionary validation failed:', validationError);
-                    return NextResponse.json({ error: 'Word validation failed' }, { status: 500 });
+                    // On network error, allow the word (fail open for better UX)
+                    // The client-side validation should have caught most invalid words
                 }
             }
         }
