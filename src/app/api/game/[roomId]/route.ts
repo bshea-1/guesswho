@@ -44,11 +44,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
     );
 
     const sanitizedPlayers = Object.entries(game.players).reduce((acc, [pid, p]) => {
-        // Show characterId IF:
+        // For Guess Who: Show characterId IF:
         // 1. It's the player themselves
         // 2. The game is finished (using matchStatus for accuracy, checking both)
         // 3. The requester is a spectator (or non-playing host)
-        const shouldReveal =
+        // For other games (Connect 4, Word Bomb, etc.): characterId is just a color/identifier and should always be visible
+        const isGuessWho = game.gameType === 'guess-who';
+
+        const shouldReveal = !isGuessWho || // Always reveal for non-Guess Who games
             pid === playerId ||
             game.status === 'finished' ||
             game.matchStatus === 'finished' ||
