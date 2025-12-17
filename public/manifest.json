@@ -8,7 +8,7 @@
     "orientation": "portrait",
     "icons": [
         {
-            "src": "/favicon.png",
+            "src": "/sitelogo.png",
             "sizes": "512x512",
             "type": "image/png"
         }

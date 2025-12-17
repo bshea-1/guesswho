@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: "Play classic games like Guess Who, Connect 4, and Word Bomb online with friends!",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png",
+    icon: "/sitelogo.png",
   },
   other: {
     "theme-color": "#0f172a",
