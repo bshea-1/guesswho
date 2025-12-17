@@ -13,7 +13,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE' | 'TRANSFER_HOST' | 'LEAVE_PARTY' | 'DRAW_LINE';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE' | 'TRANSFER_HOST' | 'LEAVE_PARTY' | 'DRAW_LINE' | 'LEAVE_NEXT_ROUND';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -1100,7 +1100,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 winnerId,
                 turnPlayerId: null,
                 lobbyCountdownStart: Date.now(),
-                joinedNextRound: [], // Empty queue, players must opt-in
+                // Auto-join all current players for the next round
+                joinedNextRound: Object.values(state.players).filter(p => p.role === 'player').map(p => p.id),
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'WIN',
@@ -1167,6 +1168,20 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 content: `${state.players[playerId]?.name || 'Someone'} joined next round!`,
                 timestamp: Date.now()
             }]
+        };
+    }
+
+    if (type === 'LEAVE_NEXT_ROUND') {
+        if (state.gameType !== 'word-bomb') return state;
+        if (state.matchStatus !== 'finished') return state;
+
+        const currentJoined = state.joinedNextRound || [];
+        if (!currentJoined.includes(playerId)) return state;
+
+        return {
+            ...state,
+            joinedNextRound: currentJoined.filter(id => id !== playerId),
+            history: state.history // No history spam for leaving? Or maybe verbose is fine.
         };
     }
 
@@ -1273,7 +1288,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 winnerId,
                 turnPlayerId: null,
                 lobbyCountdownStart: Date.now(),
-                joinedNextRound: [], // Queue empty
+                // Auto-join all current players for the next round
+                joinedNextRound: Object.values(state.players).filter(p => p.role === 'player').map(p => p.id),
                 history: [...state.history, {
                     playerId: 'system',
                     action: 'WIN',

@@ -49,6 +49,12 @@ export default function GameClient({ roomId }: { roomId: string }) {
                 const data = await res.json();
                 if (data && !data.error) {
                     setGame(data);
+                    if (data.serverTime) {
+                        // Offset = ServerTime - ClientTime
+                        // If we use this offset, ServerNow = ClientNow + Offset
+                        const offset = data.serverTime - Date.now();
+                        useGameStore.getState().setTimeOffset(offset);
+                    }
                     setLoading(false);
                 }
                 return data;
@@ -76,6 +82,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
 
             // Listen for fast typing updates (bypasses DB, near-instant)
             channel.bind('typing-update', (data: { playerId: string; text: string }) => {
+                console.log('[GameClient] Received typing update:', data);
                 // Only show typing from other players, not yourself
                 if (data.playerId !== playerId) {
                     setTypingText(data.text);

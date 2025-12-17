@@ -14,9 +14,14 @@ export async function POST(req: Request) {
         // This provides near-instant real-time typing visibility
         if (type === 'UPDATE_TYPING') {
             try {
+                // Robustly extract text
+                const text = payload?.text || (typeof payload === 'string' ? payload : '') || '';
+
+                // console.log(`[API] Broadcasting typing update for room ${roomId} player ${playerId}: "${text}"`);
+
                 await pusherServer.trigger(`room-${roomId}`, 'typing-update', {
                     playerId,
-                    text: payload?.text || ''
+                    text: String(text)
                 });
             } catch (e) {
                 console.error('Pusher trigger failed:', e);

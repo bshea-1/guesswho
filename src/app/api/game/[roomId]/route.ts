@@ -64,6 +64,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
     const sanitizedGame = {
         ...game,
         players: sanitizedPlayers,
+        serverTime: Date.now()
     };
 
     return NextResponse.json(sanitizedGame);

@@ -72,6 +72,8 @@ export type GameState = {
         visibility: 'public' | 'unlisted' | 'private';
     };
     createdAt: number;
+    // Client-sync
+    serverTime?: number;
 };
 
 export type CreateRoomParams = {

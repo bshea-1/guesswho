@@ -16,6 +16,8 @@ interface ClientStore {
     // Guess mode - when true, clicking a card makes a guess
     guessMode: boolean;
     setGuessMode: (mode: boolean) => void;
+    timeOffset: number;
+    setTimeOffset: (offset: number) => void;
 }
 
 export const useGameStore = create<ClientStore>()(
@@ -32,6 +34,8 @@ export const useGameStore = create<ClientStore>()(
             clearGame: () => set({ game: null, roomId: null, playerId: null }),
             guessMode: false,
             setGuessMode: (mode) => set({ guessMode: mode }),
+            timeOffset: 0,
+            setTimeOffset: (offset) => set({ timeOffset: offset }),
         }),
         {
             name: 'guesswho-storage',

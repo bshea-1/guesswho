@@ -3,7 +3,8 @@
 import { GameState, Player } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bomb, Heart, Send, AlertCircle, CheckCircle, UserPlus, Users, Flag } from 'lucide-react';
+import { Bomb, Heart, Send, AlertCircle, CheckCircle, UserPlus, Users, Flag, UserMinus } from 'lucide-react'; // Added UserMinus
+import { useGameStore } from '@/lib/store';
 
 const INITIAL_TIMER = 20;
 const LOBBY_DURATION = 15;
@@ -40,6 +41,8 @@ export default function WordBombGame({
     const myLives = myData?.lives || 0;
     const isEliminated = myData?.isEliminated || false;
 
+    const { timeOffset } = useGameStore();
+
     const isInLobby = game.matchStatus === 'finished' && game.lobbyCountdownStart;
     const joinedPlayers = game.joinedNextRound || [];
     const hasJoined = joinedPlayers.includes(playerId);
@@ -66,7 +69,9 @@ export default function WordBombGame({
         const duration = game.currentTimerDuration || INITIAL_TIMER;
 
         const updateTimer = () => {
-            const elapsed = (Date.now() - turnStart) / 1000;
+            // Synced timer: ServerNow = ClientNow + Offset
+            const now = Date.now() + timeOffset;
+            const elapsed = (now - turnStart) / 1000;
             const remaining = Math.max(0, duration - elapsed);
             setTimeLeft(remaining);
 
@@ -79,14 +84,15 @@ export default function WordBombGame({
         updateTimer();
         const interval = setInterval(updateTimer, 100);
         return () => clearInterval(interval);
-    }, [game.turnStartTime, game.currentTimerDuration, game.matchStatus, myTurn, isEliminated, timerExpiredSent, sendAction]);
+    }, [game.turnStartTime, game.currentTimerDuration, game.matchStatus, myTurn, isEliminated, timerExpiredSent, sendAction, timeOffset]);
 
     // Lobby countdown
     useEffect(() => {
         if (!isInLobby || !game.lobbyCountdownStart) return;
 
         const updateLobbyTimer = () => {
-            const elapsed = (Date.now() - game.lobbyCountdownStart!) / 1000;
+            const now = Date.now() + timeOffset;
+            const elapsed = (now - game.lobbyCountdownStart!) / 1000;
             const remaining = Math.max(0, LOBBY_DURATION - elapsed);
             setLobbyTimeLeft(remaining);
 
@@ -111,7 +117,7 @@ export default function WordBombGame({
         updateLobbyTimer();
         const interval = setInterval(updateLobbyTimer, 100);
         return () => clearInterval(interval);
-    }, [isInLobby, game.lobbyCountdownStart, joinedPlayers.length, matchStarted, sendAction, iamHost]);
+    }, [isInLobby, game.lobbyCountdownStart, joinedPlayers.length, matchStarted, sendAction, iamHost, timeOffset]);
 
     // Focus input on my turn
     useEffect(() => {
@@ -249,9 +255,18 @@ export default function WordBombGame({
                             Join Next Round
                         </button>
                     ) : (
-                        <div className="bg-green-500/20 border border-green-500 text-green-400 py-4 px-8 rounded-xl text-xl font-bold flex items-center justify-center gap-3">
-                            <CheckCircle size={24} />
-                            You're In!
+                        <div className="flex flex-col gap-3">
+                            <div className="bg-green-500/20 border border-green-500 text-green-400 py-4 px-8 rounded-xl text-xl font-bold flex items-center justify-center gap-3">
+                                <CheckCircle size={24} />
+                                You're In!
+                            </div>
+                            <button
+                                onClick={() => sendAction('LEAVE_NEXT_ROUND', null)}
+                                className="flex items-center justify-center gap-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 py-2 rounded-lg transition text-sm font-semibold"
+                            >
+                                <UserMinus size={16} />
+                                Leave Next Round
+                            </button>
                         </div>
                     )}
 
