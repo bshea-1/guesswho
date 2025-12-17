@@ -77,7 +77,7 @@ export async function POST(req: Request) {
                 }
             }
 
-            // 3+ Letter word validation (direct external API calls)
+            // 3+ Letter word validation (Dictionary API only)
             if (word.length >= 3) {
                 // Common words that APIs might miss
                 const COMMON_WORDS = new Set([
@@ -93,28 +93,9 @@ export async function POST(req: Request) {
                     let isValid = false;
 
                     try {
-                        // Try Dictionary API first
+                        // Use Dictionary API only
                         const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-
-                        if (dictRes.ok) {
-                            isValid = true;
-                        } else {
-                            // Dictionary API failed (404 = not found), try Wiktionary
-                            try {
-                                const wikiRes = await fetch(`https://en.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&format=json`);
-                                const wikiData = await wikiRes.json();
-
-                                const pages = wikiData.query?.pages;
-                                if (pages) {
-                                    const pageId = Object.keys(pages)[0];
-                                    if (pageId !== '-1' && !pages[pageId].missing) {
-                                        isValid = true;
-                                    }
-                                }
-                            } catch (wikiError) {
-                                console.error('Wiktionary check failed:', wikiError);
-                            }
-                        }
+                        isValid = dictRes.ok;
                     } catch (dictError) {
                         console.error('Dictionary API check failed:', dictError);
                     }

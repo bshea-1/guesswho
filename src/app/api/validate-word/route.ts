@@ -91,36 +91,14 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Try Dictionary API first (Verified & clean definitions)
+        // Use Dictionary API only (Verified & clean definitions)
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
 
         if (response.ok) {
             return NextResponse.json({ valid: true, source: 'dictionary-api' });
-        } else if (response.status === 404) {
-            // Dictionary API failed, try Wiktionary API (More comprehensive but looser)
-            try {
-                const wikiRes = await fetch(`https://en.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&format=json`);
-                const wikiData = await wikiRes.json();
-
-                // Check if page exists (missing pages have "-1" key or "missing" property)
-                const pages = wikiData.query?.pages;
-                if (pages) {
-                    const pageId = Object.keys(pages)[0];
-                    if (pageId !== '-1' && !pages[pageId].missing) {
-                        return NextResponse.json({ valid: true, source: 'wiktionary' });
-                    }
-                }
-
-                return NextResponse.json({ valid: false, error: 'Word not found in dictionaries' });
-            } catch (wikiError) {
-                console.error('Wiktionary API error:', wikiError);
-                // If both fail, assume invalid (strict mode)
-                return NextResponse.json({ valid: false, error: 'Word not found (Validation Service Error)' });
-            }
         } else {
-            // API error - be strict
-            console.error('Dictionary API error:', response.status);
-            return NextResponse.json({ valid: false, error: 'Validation service unavailable' });
+            // Word not found or API error - reject
+            return NextResponse.json({ valid: false, error: 'Word not found in dictionary' });
         }
     } catch (error) {
         console.error('Dictionary API fetch error:', error);
