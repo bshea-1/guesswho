@@ -193,7 +193,7 @@ export default function GuessWhoGame({
 
             {/* Controls Area (Only for Active Players) */}
             {iamActive && game.matchStatus === 'playing' && (
-                <div className="px-2 pt-2 pb-8 sm:p-4 bg-slate-900 border-t border-white/10 shrink-0 z-20">
+                <div className="px-2 pt-2 bg-slate-900 border-t border-white/10 shrink-0 z-20 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
                     <GameControls game={game} playerId={playerId} />
                 </div>
             )}
