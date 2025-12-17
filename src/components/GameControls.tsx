@@ -235,7 +235,7 @@ export default function GameControls({ game, playerId }: { game: GameState, play
                         </AnimatePresence>
                     </div>
 
-                    <div className="flex justify-between items-center sm:mt-0 -mt-2">
+                    <div className="flex justify-between items-center mt-2 sm:mt-0">
                         {suggestion && !guessMode && (
                             <div
                                 className="text-[10px] sm:text-xs text-blue-400 flex items-center gap-1 cursor-pointer hover:text-blue-300 max-w-[60%] truncate"
