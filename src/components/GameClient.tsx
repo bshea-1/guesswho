@@ -209,39 +209,53 @@ export default function GameClient({ roomId }: { roomId: string }) {
             {/* Main Main Area */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
 
-                {/* HOST OVERLAY LOGIC */}
-                {iamHost && game.matchStatus === 'lobby' && (
+                {/* LOBBY OVERLAY - Visible to everyone, but only host can start */}
+                {game.matchStatus === 'lobby' && (
                     <div className="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4 pt-20">
                         <div className="bg-slate-900 border border-yellow-500/30 p-6 rounded-2xl max-w-lg w-full shadow-2xl overflow-y-auto max-h-[80vh]">
-                            <h2 className="text-2xl font-bold text-yellow-400 mb-6 text-center">Host Controls</h2>
+                            <h2 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
+                                {iamHost ? 'Host Controls' : 'Waiting for Host'}
+                            </h2>
 
                             <div className="flex flex-col gap-6">
                                 <div>
-                                    <h3 className="font-bold text-slate-300 mb-2">Waitlist / Queue</h3>
+                                    <h3 className="font-bold text-slate-300 mb-2">Players in Queue</h3>
                                     <div className="bg-slate-950/50 rounded-lg p-2 min-h-[100px] border border-white/5">
                                         {game.queue.length === 0 ? (
-                                            <p className="text-slate-500 italic text-center py-4">Queue is empty.</p>
+                                            <p className="text-slate-500 italic text-center py-4">Waiting for players to join...</p>
                                         ) : (
                                             <ul className="space-y-2">
                                                 {game.queue.map((qid, idx) => (
-                                                    <li key={qid} className="flex justify-between bg-slate-800 p-2 rounded text-sm">
-                                                        <span>{idx + 1}. {game.players[qid]?.name}</span>
+                                                    <li key={qid} className={`flex justify-between p-2 rounded text-sm ${qid === playerId ? 'bg-blue-900/50 border border-blue-500/30' : 'bg-slate-800'}`}>
+                                                        <span>{idx + 1}. {game.players[qid]?.name} {qid === playerId && <span className="text-blue-400 text-xs">(You)</span>}</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         )}
                                     </div>
+                                    <p className="text-slate-500 text-xs text-center mt-2">
+                                        {game.gameType === 'cah' ? 'Cards Against Humanity needs 3+ players' : 'Waiting for more players...'}
+                                    </p>
                                 </div>
-                                <div className="flex flex-col justify-center">
-                                    <button
-                                        disabled={game.queue.length < 2}
-                                        onClick={() => sendAction('START_MATCH', null)}
-                                        className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold rounded-xl text-xl transition shadow-lg"
-                                    >
-                                        Start Next Match
-                                    </button>
-                                    <p className="text-slate-500 text-xs text-center mt-2">Needs at least 2 players in queue</p>
-                                </div>
+
+                                {iamHost ? (
+                                    <div className="flex flex-col justify-center">
+                                        <button
+                                            disabled={game.gameType === 'cah' ? game.queue.length < 3 : game.queue.length < 2}
+                                            onClick={() => sendAction('START_MATCH', null)}
+                                            className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold rounded-xl text-xl transition shadow-lg"
+                                        >
+                                            Start Game
+                                        </button>
+                                        <p className="text-slate-500 text-xs text-center mt-2">
+                                            {game.gameType === 'cah' ? 'Needs at least 3 players' : 'Needs at least 2 players'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-4">
+                                        <p className="text-slate-400 animate-pulse">Waiting for host to start the game...</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
