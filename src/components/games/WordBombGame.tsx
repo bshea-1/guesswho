@@ -154,35 +154,35 @@ export default function WordBombGame({
             return;
         }
 
-        // Dictionary check (Parallel Execution for Speed)
+        // Dictionary & Name check (Parallel + Robust Error Handling)
         try {
-            // Start both requests immediately
-            const dictPromise = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-            const namePromise = fetch(`https://api.genderize.io?name=${word}`);
+            // Helper to catch individual network errors so we don't abort the whole flow
+            const safeDictCheck = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
+                .then(res => res.ok) // true if 2xx, false if 4xx/5xx
+                .catch(() => false); // false if network error
 
-            // Check dictionary first (most common)
-            const dictRes = await dictPromise;
+            const safeNameCheck = fetch(`https://api.genderize.io?name=${word}`)
+                .then(res => res.json())
+                .then(data => !!(data && data.probability && data.probability >= 0.8))
+                .catch(() => false);
 
-            if (!dictRes.ok) {
-                // If dictionary fails, check the name result (which is already loading/done)
-                const nameRes = await namePromise;
-                const nameData = await nameRes.json();
+            const [isDictValid, isNameValid] = await Promise.all([safeDictCheck, safeNameCheck]);
 
-                // If name also fails or probability is low, reject
-                if (!nameData || !nameData.probability || nameData.probability < 0.8) {
-                    setFeedback({ type: 'error', message: 'Not a valid word!' });
-                    sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
-                    setSubmitting(false);
-                    return;
-                }
+            // If NEITHER is valid, then we reject
+            if (!isDictValid && !isNameValid) {
+                setFeedback({ type: 'error', message: 'Not a valid word!' });
+                sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
+                setSubmitting(false);
+                return;
             }
-            // If we get here, either Dictionary was OK OR Name was OK.
+
+            // If we get here, AT LEAST ONE was valid.
         } catch (error) {
-            console.error('Validation check failed', error);
+            console.error('Validation wrapper failed', error);
+            // This should rarely happen given the catches above, but if it does, strict fail.
             setFeedback({ type: 'error', message: 'Validation check failed!' });
-            sendAction('UPDATE_TYPING', { text: `❓ "${word.toUpperCase()}" - Check Failed` });
             setSubmitting(false);
-            return; // Fail closed: Do not allow word if we can't verify it
+            return;
         }
 
         await sendAction('SUBMIT_WORD', { word });
