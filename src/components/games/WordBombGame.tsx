@@ -179,7 +179,10 @@ export default function WordBombGame({
             // If we get here, either Dictionary was OK OR Name was OK.
         } catch (error) {
             console.error('Validation check failed', error);
-            // Fail open on network error to prevent blocking game
+            setFeedback({ type: 'error', message: 'Validation check failed!' });
+            sendAction('UPDATE_TYPING', { text: `❓ "${word.toUpperCase()}" - Check Failed` });
+            setSubmitting(false);
+            return; // Fail closed: Do not allow word if we can't verify it
         }
 
         await sendAction('SUBMIT_WORD', { word });
