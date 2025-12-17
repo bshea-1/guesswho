@@ -145,16 +145,16 @@ export default function GameClient({ roomId }: { roomId: string }) {
         router.push('/');
     };
 
-    // Auto-Queue Next Match
+    // Auto-Queue Next Match (excluding Word Bomb which has its own 15s lobby)
     useEffect(() => {
-        if (game?.matchStatus === 'finished' && game.hostId === playerId) {
+        if (game?.matchStatus === 'finished' && game.hostId === playerId && game.gameType !== 'word-bomb') {
             console.log('Match finished. Starting next match in 5s...');
             const timer = setTimeout(() => {
                 sendAction('START_MATCH', null);
             }, 5000);
             return () => clearTimeout(timer);
         }
-    }, [game?.matchStatus, game?.hostId, playerId, sendAction]);
+    }, [game?.matchStatus, game?.hostId, game?.gameType, playerId, sendAction]);
 
 
 
