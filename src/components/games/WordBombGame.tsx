@@ -14,7 +14,8 @@ export default function WordBombGame({
     activePlayers,
     iamActive,
     iamHost,
-    sendAction
+    sendAction,
+    typingText
 }: {
     game: GameState;
     playerId: string;
@@ -23,6 +24,7 @@ export default function WordBombGame({
     iamHost: boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sendAction: (t: string, p: any) => Promise<any>;
+    typingText: string;
 }) {
     const [inputWord, setInputWord] = useState('');
     const [timeLeft, setTimeLeft] = useState(game.currentTimerDuration || INITIAL_TIMER);
@@ -32,8 +34,6 @@ export default function WordBombGame({
     const [lobbyTimeLeft, setLobbyTimeLeft] = useState(LOBBY_DURATION);
     const [matchStarted, setMatchStarted] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
     const myTurn = game.turnPlayerId === playerId;
     const prompt = game.wordBombPrompt || '';
     const myData = game.players[playerId]?.data;
@@ -129,14 +129,11 @@ export default function WordBombGame({
     }, [feedback]);
 
     const handleInputChange = useCallback((value: string) => {
-        setInputWord(value.toUpperCase());
-
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
-        typingTimeoutRef.current = setTimeout(() => {
-            sendAction('UPDATE_TYPING', { text: value.toUpperCase() });
-        }, 20);
+        const upperValue = value.toUpperCase();
+        setInputWord(upperValue);
+        // Fire-and-forget: send typing update immediately without waiting
+        // This gives instant real-time visibility to other players
+        sendAction('UPDATE_TYPING', { text: upperValue });
     }, [sendAction]);
 
     const handleSubmit = useCallback(async () => {
@@ -396,13 +393,13 @@ export default function WordBombGame({
                                 </div>
                             )}
 
-                            {!myTurn && game.currentTyping && (
+                            {!myTurn && typingText && (
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     className="mt-3 text-2xl font-mono text-white bg-slate-800 px-6 py-3 rounded-xl inline-block"
                                 >
-                                    {game.currentTyping || '...'}
+                                    {typingText || '...'}
                                 </motion.div>
                             )}
                         </div>

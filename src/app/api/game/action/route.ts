@@ -10,6 +10,20 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { roomId, playerId, type, payload } = body;
 
+        // FAST PATH: For UPDATE_TYPING, broadcast immediately without DB read
+        // This provides near-instant real-time typing visibility
+        if (type === 'UPDATE_TYPING') {
+            try {
+                await pusherServer.trigger(`room-${roomId}`, 'typing-update', {
+                    playerId,
+                    text: payload?.text || ''
+                });
+            } catch (e) {
+                console.error('Pusher trigger failed:', e);
+            }
+            return NextResponse.json({ success: true });
+        }
+
         const game = await gameStorage.getGame(roomId);
         if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 

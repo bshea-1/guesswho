@@ -23,6 +23,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
     const [copied, setCopied] = useState(false);
     const [chatInput, setChatInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [typingText, setTypingText] = useState('');
 
     const copyRoomCode = () => {
         navigator.clipboard.writeText(roomId);
@@ -69,6 +70,16 @@ export default function GameClient({ roomId }: { roomId: string }) {
             channel.bind('game-update', (newGameState: GameState) => {
                 console.log('Received game update via Pusher', newGameState);
                 setGame(newGameState);
+                // Clear typing display on game updates (new turn, etc.)
+                setTypingText('');
+            });
+
+            // Listen for fast typing updates (bypasses DB, near-instant)
+            channel.bind('typing-update', (data: { playerId: string; text: string }) => {
+                // Only show typing from other players, not yourself
+                if (data.playerId !== playerId) {
+                    setTypingText(data.text);
+                }
             });
 
             // Listen for party ended event
@@ -374,6 +385,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                         iamActive={iamActive}
                         iamHost={iamHost}
                         sendAction={sendAction}
+                        typingText={typingText}
                     />
                 ) : game.gameType === 'connect-4' ? (
                     <Connect4Game
