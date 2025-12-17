@@ -468,7 +468,7 @@ export default function HomeClient() {
                                 <div className="grid grid-cols-1 gap-3">
                                     <button
                                         onClick={() => handleGameSelect('guess-who')}
-                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition group text-left"
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-blue-900/40 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition group text-left"
                                     >
                                         <div className="p-3 bg-blue-500/20 rounded-lg text-blue-400 group-hover:text-blue-300">
                                             <Search size={24} />
@@ -481,7 +481,7 @@ export default function HomeClient() {
 
                                     <button
                                         onClick={() => handleGameSelect('word-bomb')}
-                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-orange-500 transition group text-left"
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-orange-900/40 p-4 rounded-xl border border-slate-700 hover:border-orange-500 transition group text-left"
                                     >
                                         <div className="p-3 bg-orange-500/20 rounded-lg text-orange-400 group-hover:text-orange-300">
                                             <Dices size={24} />
@@ -494,7 +494,7 @@ export default function HomeClient() {
 
                                     <button
                                         onClick={() => handleGameSelect('connect-4')}
-                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-red-500 transition group text-left"
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-red-900/40 p-4 rounded-xl border border-slate-700 hover:border-red-500 transition group text-left"
                                     >
                                         <div className="p-3 bg-red-500/20 rounded-lg text-red-400 group-hover:text-red-300">
                                             <Grid3X3 size={24} />
