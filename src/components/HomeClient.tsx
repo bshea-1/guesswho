@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
 import { GameType } from '@/lib/types';
-import { Loader2, Plus, Users, Eye, Tv, X, Check, Dices, Grid3X3, Search } from 'lucide-react'; // Added icons
+import { Loader2, Plus, Users, Eye, Tv, X, Check, Dices, Grid3X3, Search, Skull } from 'lucide-react'; // Added icons
 
 export default function HomeClient() {
     const router = useRouter();
@@ -502,6 +502,19 @@ export default function HomeClient() {
                                         <div>
                                             <div className="font-bold text-white">Connect 4</div>
                                             <div className="text-sm text-slate-400">Strategy vertical checker game</div>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleGameSelect('cah')}
+                                        className="flex items-center gap-4 bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 hover:border-black transition group text-left"
+                                    >
+                                        <div className="p-3 bg-slate-900 rounded-lg text-white group-hover:text-slate-200 border border-slate-700">
+                                            <Skull size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white">Cards Against Humanity</div>
+                                            <div className="text-sm text-slate-400">The party game for horrible people</div>
                                         </div>
                                     </button>
                                 </div>

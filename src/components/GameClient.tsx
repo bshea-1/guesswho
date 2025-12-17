@@ -13,6 +13,7 @@ import GameSidebar from '@/components/shared/GameSidebar';
 import GuessWhoGame from '@/components/games/GuessWhoGame';
 import Connect4Game from '@/components/games/Connect4Game';
 import WordBombGame from '@/components/games/WordBombGame';
+import CAHGame from '@/components/games/CAHGame';
 
 export default function GameClient({ roomId }: { roomId: string }) {
     const router = useRouter();

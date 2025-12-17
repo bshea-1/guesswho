@@ -14,7 +14,7 @@ export type Player = {
 };
 
 
-export type GameType = 'guess-who' | 'word-bomb' | 'connect-4';
+export type GameType = 'guess-who' | 'word-bomb' | 'connect-4' | 'cah';
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
@@ -49,6 +49,12 @@ export type GameState = {
     currentTyping?: string; // Real-time typing display
     lobbyCountdownStart?: number; // When the 15-second lobby countdown started
     joinedNextRound?: string[]; // Player IDs who clicked "Join Next Round"
+
+    // CAH Specific State
+    cahBlackCard?: { text: string; pick: number; }; // Current black card
+    cahSubmissions?: { playerId: string; cards: string[]; isWinner?: boolean; }[];
+    cahPhase?: 'pick' | 'judge' | 'result';
+    cahCzarId?: string; // Player ID of the Card Czar
 
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];

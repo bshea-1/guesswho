@@ -3,6 +3,7 @@ import { CHARACTERS } from './characters';
 import { sanitizeName } from './validation';
 import { createConnect4Board, dropPiece, checkConnect4Win, isBoardFull } from './games/connect4';
 import { createInitialWordBombData, getRandomPrompt, INITIAL_TIMER_SECONDS, TIMER_DECREASE_PER_ROUND, MIN_TIMER_SECONDS } from './games/word-bomb';
+import { BLACK_CARDS, WHITE_CARDS } from './games/cah-data';
 
 
 export function checkGuess(character: any, question: { category: string, value: any }): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -12,7 +13,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -158,6 +159,86 @@ function startWordBombMatch(state: GameState, p1Id: string, p2Id: string): GameS
     };
 }
 
+function startCAHMatch(state: GameState, p1Id: string, p2Id: string): GameState {
+    const newQueue = state.queue.filter(id => id !== p1Id && id !== p2Id);
+
+    // For CAH, "p1" and "p2" are just the triggers really. 
+    // Usually CAH includes EVERYONE in the party (except spectators who opt out).
+    // But sticking to the pattern: "Active Players vs Spectators".
+
+    // HOWEVER, for CAH, we likely want multiple players.
+    // Logic: If there are people in the queue, PULL THEM ALL IN?
+    // Or just start with current "Active" set?
+
+    // Implementation: PULL ALL QUEUED PLAYERS into the game for maximum fun.
+    // UNLESS the host specifically picked 2 people.
+    // Let's stick to: Everyone who is NOT a spectator becomes a player?
+    // Or simpler: Convert P1, P2 AND Queue into Players.
+
+    const allPlayerIds = [p1Id, p2Id, ...newQueue]; // Everyone plays!
+    const finalQueue: string[] = []; // Queue empty
+
+    const resetPlayers = { ...state.players };
+
+    // Deal Hand Helper
+    const dealHand = () => {
+        const hand: string[] = [];
+        for (let i = 0; i < 7; i++) {
+            hand.push(WHITE_CARDS[Math.floor(Math.random() * WHITE_CARDS.length)]);
+        }
+        return hand;
+    };
+
+    // Pick Czar (Random)
+    const czarId = allPlayerIds[Math.floor(Math.random() * allPlayerIds.length)];
+
+    // Setup Players
+    Object.keys(resetPlayers).forEach(pid => {
+        const isParticipant = allPlayerIds.includes(pid);
+        resetPlayers[pid] = {
+            ...resetPlayers[pid],
+            role: isParticipant ? 'player' : 'spectator',
+            characterId: null, // Unused for CAH
+            eliminatedIds: [],
+            isReady: true,
+            // Initialize CAH Data: Hand and Score
+            data: isParticipant ? {
+                hand: dealHand(),
+                score: 0,
+                isCzar: pid === czarId
+            } : null
+        };
+    });
+
+    // Pick Black Card
+    const blackCard = BLACK_CARDS[Math.floor(Math.random() * BLACK_CARDS.length)];
+
+    return {
+        ...state,
+        players: resetPlayers,
+        queue: finalQueue,
+        status: 'playing',
+        matchStatus: 'playing',
+        turnPlayerId: czarId,
+        winnerId: null,
+        board: null,
+
+        // CAH Specifics
+        cahBlackCard: blackCard,
+        cahSubmissions: [],
+        cahPhase: 'pick',
+        cahCzarId: czarId,
+
+        history: [{
+            playerId: 'system',
+            action: 'info',
+            content: `Cards Against Humanity Started! Czar is ${resetPlayers[czarId].name}`,
+            timestamp: Date.now()
+        }],
+        chat: state.chat.filter(m => m.scope !== 'game'),
+    };
+}
+
 
 export function createInitialGameState(
     roomId: string,
@@ -228,6 +309,8 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
             return startConnect4Match(stateWithP2, state.hostId, playerId);
         } else if (state.gameType === 'word-bomb') {
             return startWordBombMatch(stateWithP2, state.hostId, playerId);
+        } else if (state.gameType === 'cah') {
+            return startCAHMatch(stateWithP2, state.hostId, playerId);
         }
 
         return stateWithP2;
@@ -429,6 +512,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             return startConnect4Match(stateWithQueue, p1Id, p2Id);
         } else if (state.gameType === 'word-bomb') {
             return startWordBombMatch(stateWithQueue, p1Id, p2Id);
+        } else if (state.gameType === 'cah') {
+            return startCAHMatch(stateWithQueue, p1Id, p2Id);
         }
 
         return stateWithQueue; // Placeholder for other games
@@ -1019,6 +1104,181 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 playerId: 'system',
                 action: 'info',
                 content: `💥 ${player.name} gave up! ${newLives} lives left. New prompt: "${newPrompt}"`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // --- CAH ACTIONS ---
+    if (type === 'SUBMIT_CARDS') {
+        if (state.gameType !== 'cah') throw new Error('Invalid game type');
+        if (state.matchStatus !== 'playing') return state;
+
+        // Cannot submit if Czar
+        if (playerId === state.cahCzarId) return state;
+
+        // Cannot submit twice
+        if (state.cahSubmissions?.find(s => s.playerId === playerId)) return state;
+
+        const cards: string[] = payload; // Array of card texts
+        const blackCard = state.cahBlackCard;
+
+        // Validate count
+        // if (!blackCard || cards.length !== blackCard.pick) {
+        // throw new Error(`Must submit exactly ${blackCard?.pick} cards`);
+        // }
+        // Relax check for MVP if client sends robustly? 
+        // No, keep it strict.
+        if (!blackCard) return state;
+
+        // Remove submitted cards from hand
+        const player = state.players[playerId];
+        const currentHand = (player.data?.hand as string[]) || [];
+        const newHand = currentHand.filter(c => !cards.includes(c));
+
+        const newSubmissions = [...(state.cahSubmissions || []), {
+            playerId,
+            cards,
+            isWinner: false
+        }];
+
+        // Check if everyone submitted
+        // Everyone except Czar and specific spectators
+        // Active Players = Players who have 'data' initialized (hand)
+        // Wait, startCAHMatch initialized 'data' for participants.
+        // Spectators have data:null.
+        const activePlayers = Object.values(state.players).filter(p => p.role === 'player' && !!p.data && p.id !== state.cahCzarId);
+        const allSubmitted = activePlayers.every(p => newSubmissions.find(s => s.playerId === p.id));
+
+        let newPhase = state.cahPhase;
+        if (allSubmitted && activePlayers.length > 0) {
+            newPhase = 'judge';
+        }
+
+        const newPlayers = {
+            ...state.players,
+            [playerId]: {
+                ...player,
+                data: { ...player.data, hand: newHand }
+            }
+        };
+
+        return {
+            ...state,
+            players: newPlayers,
+            cahSubmissions: newSubmissions,
+            cahPhase: newPhase,
+            history: allSubmitted
+                ? [...state.history, { playerId: 'system', action: 'info', content: 'All players submitted! Czar is judging.', timestamp: Date.now() }]
+                : state.history
+        };
+    }
+
+    if (type === 'PICK_WINNER') {
+        if (state.gameType !== 'cah') throw new Error('Invalid game type');
+        if (state.matchStatus !== 'playing') return state;
+        if (playerId !== state.cahCzarId) throw new Error('Only Czar can pick winner');
+        if (state.cahPhase !== 'judge') throw new Error('Not judging phase');
+
+        const winningPlayerId = payload; // ID of winner
+
+        // Mark winner
+        const submission = state.cahSubmissions?.find(s => s.playerId === winningPlayerId);
+        if (!submission) throw new Error('Invalid winner selection');
+
+        // Update score
+        const winningPlayer = state.players[winningPlayerId];
+        const newScore = (winningPlayer.data?.score || 0) + 1;
+
+        const newPlayers = {
+            ...state.players,
+            [winningPlayerId]: {
+                ...winningPlayer,
+                data: { ...winningPlayer.data, score: newScore }
+            }
+        };
+
+        return {
+            ...state,
+            players: newPlayers,
+            cahPhase: 'result',
+            cahSubmissions: state.cahSubmissions?.map(s => s.playerId === winningPlayerId ? { ...s, isWinner: true } : s),
+            winnerId: winningPlayerId, // Round winner
+            turnPlayerId: null, // No one's turn in result
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'WIN',
+                content: `${winningPlayer.name} wins the round!`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // CAH Next Round Logic (Piggybacking off START_MATCH or specialized handling)
+    // We already intercepted START_MATCH? No, we didn't add logic there.
+    // Let's add it here as a post-condition check or new action "CAH_NEXT_ROUND"
+
+    // Actually, let's keep it simple: Host triggers "START_MATCH" (Start Next Match button).
+    // In `START_MATCH` logic (Lines ~440), we have generic logic.
+    // BUT we can add a specific override below if that logic doesn't suffice.
+    // However, START_MATCH resets everything via `startCAHMatch`.
+    // We want to PRESERVE scores.
+    // So `startCAHMatch` is too destructive. 
+    // We need `startCAHRound` really. 
+    // Let's implement `CAH_NEXT_ROUND` action here.
+    if (type === 'CAH_NEXT_ROUND') {
+        if (state.gameType !== 'cah') return state;
+        if (state.cahPhase !== 'result') return state;
+
+        // 1. Rotate Czar
+        // Get generic active players list (exclude pure spectators)
+        const activeIds = Object.values(state.players)
+            .filter(p => p.role === 'player')
+            .map(p => p.id)
+            .sort();
+
+        const currentCzarIndex = activeIds.indexOf(state.cahCzarId || '');
+        const nextCzarId = activeIds[(currentCzarIndex + 1) % activeIds.length] || activeIds[0];
+
+        // 2. Deal new cards
+        const newPlayers = { ...state.players };
+        Object.keys(newPlayers).forEach(pid => {
+            const p = newPlayers[pid];
+            if (p.role === 'player') {
+                const currentHand = (p.data?.hand as string[]) || [];
+                const needed = 7 - currentHand.length;
+                const newCards: string[] = [];
+                for (let i = 0; i < needed; i++) {
+                    newCards.push(WHITE_CARDS[Math.floor(Math.random() * WHITE_CARDS.length)]);
+                }
+
+                newPlayers[pid] = {
+                    ...p,
+                    data: {
+                        ...p.data,
+                        hand: [...currentHand, ...newCards],
+                        isCzar: pid === nextCzarId
+                    }
+                };
+            }
+        });
+
+        // 3. New Black Card
+        const newBlackCard = BLACK_CARDS[Math.floor(Math.random() * BLACK_CARDS.length)];
+
+        return {
+            ...state,
+            players: newPlayers,
+            cahBlackCard: newBlackCard,
+            cahSubmissions: [],
+            cahPhase: 'pick',
+            cahCzarId: nextCzarId,
+            turnPlayerId: nextCzarId,
+            winnerId: null, // Reset round winner
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `Next Round! Czar is ${newPlayers[nextCzarId].name}`,
                 timestamp: Date.now()
             }]
         };
