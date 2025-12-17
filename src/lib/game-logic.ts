@@ -360,6 +360,7 @@ export const startDotsAndBoxesMatch = (gameState: GameState): GameState => {
     // 3x3 Grid of boxes
     const activePlayers = Object.values(gameState.players)
         .filter(p => gameState.queue.length >= 2 ? gameState.queue.slice(0, 2).includes(p.id) : (p.role === 'player' || (p.role === 'host' && gameState.queue.length < 2)))
+        .sort((a, b) => a.id.localeCompare(b.id))
         .slice(0, 2);
 
     if (activePlayers.length < 2) {
@@ -1542,16 +1543,18 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             // Efficient approach: Scan neighbors of the currentLine. 
             // If any neighbor box has 3 sides present, ADD the missing side to `linesToProcess`.
 
-            // Re-check neighbors for 3-sided state
-            for (const box of boxesToCHeck) {
-                if (box.r < 0 || box.c < 0 || box.r >= 5 || box.c >= 5) continue;
-                if (newBoxes[`${box.r}-${box.c}`]) continue;
+            // Re-check neighbors for 3-sided state ONLY if we made a box (Auto-chaining)
+            if (madeBox) {
+                for (const box of boxesToCHeck) {
+                    if (box.r < 0 || box.c < 0 || box.r >= 5 || box.c >= 5) continue;
+                    if (newBoxes[`${box.r}-${box.c}`]) continue;
 
-                const missing = getMissingSide(box.r, box.c, newLines);
-                if (missing) {
-                    // Auto-draw this line!
-                    if (!linesToProcess.includes(missing) && !newLines.includes(missing)) {
-                        linesToProcess.push(missing);
+                    const missing = getMissingSide(box.r, box.c, newLines);
+                    if (missing) {
+                        // Auto-draw this line!
+                        if (!linesToProcess.includes(missing) && !newLines.includes(missing)) {
+                            linesToProcess.push(missing);
+                        }
                     }
                 }
             }

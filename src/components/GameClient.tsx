@@ -314,7 +314,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                             exit={{ y: -20, opacity: 0 }}
                                             className="text-green-400 flex items-center gap-2 text-lg sm:text-xl font-black"
                                         >
-                                            <span className="w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded-full animate-ping" />
+                                            <span className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-ping" />
                                             🎯 YOUR TURN!
                                         </motion.span> :
                                         <motion.span
