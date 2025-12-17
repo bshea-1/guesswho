@@ -981,19 +981,69 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const newUsedWords = [...usedWords, word];
         const newPrompt = getRandomPrompt();
 
-        // Get next player
         const activePlayers = Object.values(state.players).filter(p => p.role === 'player' && !p.data?.isEliminated);
         const currentIndex = activePlayers.findIndex(p => p.id === playerId);
         const nextPlayer = activePlayers[(currentIndex + 1) % activePlayers.length];
 
-        // Decrease timer slightly for next round
-        const newTimer = Math.max(
-            MIN_TIMER_SECONDS,
-            (state.currentTimerDuration || INITIAL_TIMER_SECONDS) - TIMER_DECREASE_PER_ROUND
-        );
+        // --- TIMER LOGIC (Step-based) ---
+        // Base: 20s
+        // >5 loops: 15s
+        // >10 loops: 10s
+        // >15 loops: 7s
+        const playerCount = Math.max(1, activePlayers.length);
+        const totalTurns = newUsedWords.length;
+        const loops = Math.floor(totalTurns / playerCount);
+
+        let newTimer = INITIAL_TIMER_SECONDS; // 20
+        if (loops >= 15) newTimer = 7;
+        else if (loops >= 10) newTimer = 10;
+        else if (loops >= 5) newTimer = 15;
+
+        // --- ALPHABET LOGIC ---
+        const player = state.players[playerId];
+        const currentData = player.data as any;
+        const usedLetters = new Set([...(currentData.usedLetters || []), ...word.split('')]);
+        const newUsedLetters = Array.from(usedLetters);
+
+        // Check for 26 letters (English alphabet)
+        const alphabetCount = newUsedLetters.filter(l => /[a-z]/i.test(l)).length; // rudimentary check, assume sanitized input
+        // Actually, just checking unique chars is safer if we trust input is letters.
+        // Let's rely on sanitized input being alphabetic.
+
+        let newLives = currentData.lives;
+        let hasReceivedGoldenHeart = currentData.hasReceivedGoldenHeart;
+        let notificationMsg = `✓ "${word}" accepted!`;
+
+        const ALPHABET_SIZE = 26; // User said 27? "all 27 letters of the english alphabet". English has 26. Maybe they count space? Words don't have spaces. I'll assume 26.
+        // Wait, user explicitly said "27 letters". Maybe they made a typo or think there are 27. I will use 26 as standard English.
+
+        if (alphabetCount >= ALPHABET_SIZE && !hasReceivedGoldenHeart) {
+            hasReceivedGoldenHeart = true;
+            // Reward: Add life (Golden Heart if at max)
+            // Max base is 2. So if 2 -> 3.
+            newLives = Math.min(3, newLives + 1);
+            notificationMsg = `🎉 ALPHABET COMPLETE! Golden Heart Awarded! ❤️`;
+        }
+
+        const updatedPlayer = {
+            ...player,
+            data: {
+                ...currentData,
+                lives: newLives,
+                usedLetters: newUsedLetters,
+                hasReceivedGoldenHeart
+            }
+        };
+
+        const newPlayers = {
+            ...state.players,
+            [playerId]: updatedPlayer
+        };
+
 
         return {
             ...state,
+            players: newPlayers,
             usedWords: newUsedWords,
             wordBombPrompt: newPrompt,
             turnPlayerId: nextPlayer?.id || null,
@@ -1002,7 +1052,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             history: [...state.history, {
                 playerId,
                 action: 'info',
-                content: `✓ "${word}" accepted! New prompt: "${newPrompt}"`,
+                content: `${notificationMsg} New prompt: "${newPrompt}"`,
                 timestamp: Date.now()
             }]
         };

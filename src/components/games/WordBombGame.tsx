@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bomb, Heart, Send, AlertCircle, CheckCircle, UserPlus, Users, Flag } from 'lucide-react';
 
-const INITIAL_TIMER = 15;
+const INITIAL_TIMER = 20;
 const LOBBY_DURATION = 15;
 
 export default function WordBombGame({
@@ -242,10 +242,12 @@ export default function WordBombGame({
     return (
         <div className="flex flex-col h-full bg-slate-950 text-white p-4 sm:p-6 overflow-hidden">
             {/* Header: Players */}
-            <div className="flex flex-wrap gap-2 justify-center mb-6">
+            <div className="flex flex-wrap gap-2 justify-center mb-6 z-10 relative">
                 {activePlayers.map(p => {
-                    const pData = p.data || { lives: 3, isEliminated: false };
+                    const pData = p.data || { lives: 2, isEliminated: false };
                     const isCurrentTurn = game.turnPlayerId === p.id;
+                    const maxLives = Math.max(2, pData.lives || 0);
+
                     return (
                         <div
                             key={p.id}
@@ -256,18 +258,63 @@ export default function WordBombGame({
                                 {p.name}
                             </span>
                             <div className="flex gap-0.5">
-                                {Array.from({ length: 3 }).map((_, i) => (
-                                    <Heart
-                                        key={i}
-                                        size={14}
-                                        className={i < (pData.lives ?? 3) ? 'text-red-500 fill-red-500' : 'text-slate-600'}
-                                    />
-                                ))}
+                                {Array.from({ length: 3 }).map((_, i) => {
+                                    // Logic for lives:
+                                    // If lives=3 (Golden Heart active), 3rd heart is Gold.
+                                    // If lives=2 (Standard Max), show 2 red hearts.
+                                    // If we are showing 'slots', usually we show max possible?
+                                    // Let's show currently possessed lives.
+                                    // Actually, standard UI shows "slots" often.
+                                    // Let's just map up to max lives or fixed 3? 
+                                    // Fixed 3 is safe since max is 3.
+                                    const hasLife = i < (pData.lives ?? 0);
+                                    const isGolden = i === 2 && hasLife; // 3rd heart is gold
+
+                                    // If hasLife is false, show empty slot
+                                    return (
+                                        <Heart
+                                            key={i}
+                                            size={14}
+                                            className={`${hasLife
+                                                ? (isGolden ? 'text-yellow-400 fill-yellow-400' : 'text-red-500 fill-red-500')
+                                                : 'text-slate-700'}`}
+                                        />
+                                    );
+                                })}
                             </div>
                         </div>
                     );
                 })}
             </div>
+
+            {/* ALPHABET TRACKER (Left Side) */}
+            {(() => {
+                if (!myTurn || isEliminated || !myData) return null;
+                const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+                const used = new Set(myData.usedLetters || []);
+                const missing = alphabet.filter(l => !used.has(l));
+
+                // Only show if close to completion (<= 10 left) OR if we want to encourage them?
+                // User said: "letters remaining once they reach 10"
+                if (missing.length > 10) return null;
+
+                return (
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 hidden lg:flex flex-col gap-1 bg-slate-900/80 p-3 rounded-xl border border-white/10 backdrop-blur-sm max-h-[60vh] overflow-y-auto">
+                        <div className="text-xs font-bold text-slate-400 text-center uppercase mb-1">Missing<br />Letters</div>
+                        {missing.map(char => (
+                            <span key={char} className="font-mono font-bold text-yellow-400/80 text-center text-lg animate-pulse">
+                                {char}
+                            </span>
+                        ))}
+                        {missing.length === 0 && (
+                            <div className="text-center">
+                                <Heart className="text-yellow-400 fill-yellow-400 mx-auto" size={20} />
+                                <span className="text-[10px] text-yellow-400 font-bold block mt-1">Reward<br />Claimed!</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* Main Game Area */}
             <div className="flex-1 flex flex-col items-center justify-center">
@@ -277,10 +324,11 @@ export default function WordBombGame({
                         <motion.div
                             animate={{ scale: timeLeft < 3 ? [1, 1.1, 1] : 1 }}
                             transition={{ repeat: timeLeft < 3 ? Infinity : 0, duration: 0.5 }}
-                            className="relative mb-8"
+                            className="relative mb-8 flex items-center justify-center"
                         >
-                            <Bomb size={100} className={`${timerColor} ${timerScale}`} />
-                            <div className={`absolute inset-0 flex items-center justify-center font-black text-2xl ${timerColor}`}>
+                            <Bomb size={120} className={`${timerColor} ${timerScale}`} />
+                            {/* Centered Number: Bomb icon is slightly top-heavy due to fuse. Adjust top % to visually center. */}
+                            <div className={`absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 font-black text-3xl ${timerColor}`}>
                                 {Math.ceil(timeLeft)}
                             </div>
                         </motion.div>
@@ -368,13 +416,19 @@ export default function WordBombGame({
                             <div className="mt-8 flex items-center gap-2 text-slate-400">
                                 <span>Your lives:</span>
                                 <div className="flex gap-1">
-                                    {Array.from({ length: 3 }).map((_, i) => (
-                                        <Heart
-                                            key={i}
-                                            size={24}
-                                            className={i < myLives ? 'text-red-500 fill-red-500' : 'text-slate-600'}
-                                        />
-                                    ))}
+                                    {Array.from({ length: 3 }).map((_, i) => {
+                                        const iHasLife = i < myLives;
+                                        const isGold = i === 2 && iHasLife;
+                                        return (
+                                            <Heart
+                                                key={i}
+                                                size={24}
+                                                className={iHasLife
+                                                    ? (isGold ? 'text-yellow-400 fill-yellow-400' : 'text-red-500 fill-red-500')
+                                                    : 'text-slate-700'}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

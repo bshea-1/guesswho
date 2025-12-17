@@ -18,12 +18,14 @@ export const WORD_BOMB_PROMPTS = [
 export interface WordBombPlayerData {
     lives: number;
     isEliminated: boolean;
+    usedLetters: string[];
+    hasReceivedGoldenHeart?: boolean;
 }
 
-export const INITIAL_LIVES = 3;
-export const INITIAL_TIMER_SECONDS = 15;
-export const MIN_TIMER_SECONDS = 5;
-export const TIMER_DECREASE_PER_ROUND = 0.5;
+export const INITIAL_LIVES = 2;
+export const INITIAL_TIMER_SECONDS = 20;
+export const MIN_TIMER_SECONDS = 7;
+export const TIMER_DECREASE_PER_ROUND = 0.5; // Deprecated, using step logic
 
 export function getRandomPrompt(): string {
     return WORD_BOMB_PROMPTS[Math.floor(Math.random() * WORD_BOMB_PROMPTS.length)];
@@ -32,6 +34,7 @@ export function getRandomPrompt(): string {
 export function createInitialWordBombData(): WordBombPlayerData {
     return {
         lives: INITIAL_LIVES,
-        isEliminated: false
+        isEliminated: false,
+        usedLetters: []
     };
 }
