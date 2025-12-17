@@ -178,41 +178,22 @@ export default function WordBombGame({
             }
         }
 
-        // 3+ Letter Word Check (API)
+        // 3+ Letter Word Check (via server-side API to avoid CORS)
         if (word.length >= 3) {
-            // Dictionary & Name check (Parallel + Robust Error Handling)
             try {
-                // Helper to catch individual network errors so we don't abort the whole flow
-                const safeDictCheck = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
-                    .then(res => res.ok) // true if 2xx, false if 4xx/5xx
-                    .catch(() => false); // false if network error
+                const res = await fetch(`/api/validate-word?word=${encodeURIComponent(word)}`);
+                const data = await res.json();
 
-                const safeNameCheck = fetch(`https://api.genderize.io?name=${word}`)
-                    .then(res => res.json())
-                    .then(data => !!(data && data.probability && data.probability >= 0.8))
-                    .catch(() => false);
-
-                // Fallback: Datamuse (very robust for common words)
-                const safeDatamuseCheck = fetch(`https://api.datamuse.com/words?sp=${word}&md=d&max=1`)
-                    .then(res => res.json())
-                    .then(data => Array.isArray(data) && data.length > 0 && data[0].word.toLowerCase() === word.toLowerCase())
-                    .catch(() => false);
-
-
-                const [isDictValid, isNameValid, isDatamuseValid] = await Promise.all([safeDictCheck, safeNameCheck, safeDatamuseCheck]);
-
-                // If NONE are valid, then we reject
-                if (!isDictValid && !isNameValid && !isDatamuseValid) {
+                if (!data.valid) {
                     setFeedback({ type: 'error', message: 'Not a valid word!' });
                     sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
                     setSubmitting(false);
                     return;
                 }
-
-                // If we get here, AT LEAST ONE was valid.
+                // Word is valid, continue to submit
             } catch (error) {
-                console.error('Validation wrapper failed', error);
-                // This should rarely happen given the catches above, but if it does, strict fail.
+                console.error('Validation check failed', error);
+                // Be strict on errors - don't allow potentially invalid words
                 setFeedback({ type: 'error', message: 'Validation check failed!' });
                 setSubmitting(false);
                 return;
