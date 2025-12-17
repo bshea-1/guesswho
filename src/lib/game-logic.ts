@@ -1446,44 +1446,118 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         // Validation: Line must not be drawn yet
         if (state.dabLines?.includes(lineId)) throw new Error('Line already drawn');
 
-        const newLines = [...(state.dabLines || []), lineId];
-        let boxesCompleted = 0;
+        const newLines = [...(state.dabLines || [])];
         const newBoxes = { ...(state.dabBoxes || {}) };
 
-        // Helper to check if a box is completed
-        // Box "r-c" needs: h-r-c, h-(r+1)-c, v-r-c, v-r-(c+1)
-        const checkCompletion = (r: number, c: number): boolean => {
-            if (r < 0 || c < 0 || r >= 5 || c >= 5) return false;
-            if (newBoxes[`${r}-${c}`]) return false; // Already owned
+        // Queue of lines to process (starting with the user's move)
+        const linesToProcess = [lineId];
+        let boxesCompleted = 0;
+        let totalClaimedThisTurn = 0;
 
-            const top = newLines.includes(`h-${r}-${c}`);
-            const bottom = newLines.includes(`h-${r + 1}-${c}`);
-            const left = newLines.includes(`v-${r}-${c}`);
-            const right = newLines.includes(`v-${r}-${c + 1}`);
-
-            if (top && bottom && left && right) {
-                newBoxes[`${r}-${c}`] = playerId;
-                return true;
-            }
-            return false;
+        // Helper to check if a box is claimable (has 3 sides drawn) or completed
+        const isBoxComplete = (r: number, c: number, currentLines: string[]): boolean => {
+            const top = currentLines.includes(`h-${r}-${c}`);
+            const bottom = currentLines.includes(`h-${r + 1}-${c}`);
+            const left = currentLines.includes(`v-${r}-${c}`);
+            const right = currentLines.includes(`v-${r}-${c + 1}`);
+            return top && bottom && left && right;
         };
 
-        // Determine which boxes could be completed by this line
-        const [dir, rStr, cStr] = lineId.split('-');
-        const r = parseInt(rStr);
-        const c = parseInt(cStr);
+        const getMissingSide = (r: number, c: number, currentLines: string[]): string | null => {
+            const sides = [
+                { id: `h-${r}-${c}`, present: currentLines.includes(`h-${r}-${c}`) },
+                { id: `h-${r + 1}-${c}`, present: currentLines.includes(`h-${r + 1}-${c}`) },
+                { id: `v-${r}-${c}`, present: currentLines.includes(`v-${r}-${c}`) },
+                { id: `v-${r}-${c + 1}`, present: currentLines.includes(`v-${r}-${c + 1}`) }
+            ];
+            const missing = sides.filter(s => !s.present);
+            return missing.length === 1 ? missing[0].id : null;
+        };
 
-        if (dir === 'h') {
-            // Horizontal line at r,c borders box (r,c) (below line) and (r-1,c) (above line)
-            if (checkCompletion(r, c)) boxesCompleted++;
-            if (checkCompletion(r - 1, c)) boxesCompleted++;
-        } else {
-            // Vertical line at r,c borders box (r,c) (right of line) and (r,c-1) (left of line)
-            if (checkCompletion(r, c)) boxesCompleted++;
-            if (checkCompletion(r, c - 1)) boxesCompleted++;
+        // Process Loop
+        while (linesToProcess.length > 0) {
+            const currentLine = linesToProcess.shift()!;
+
+            // If already drawn, skip (should only happen if auto-chain adds a duplicate, but safety first)
+            if (newLines.includes(currentLine) && currentLine !== lineId) continue;
+
+            if (!newLines.includes(currentLine)) {
+                newLines.push(currentLine);
+            }
+
+            // Check neighbors of this line
+            const [dir, rStr, cStr] = currentLine.split('-');
+            const r = parseInt(rStr);
+            const c = parseInt(cStr);
+
+            const boxesToCHeck: { r: number, c: number }[] = [];
+
+            if (dir === 'h') {
+                boxesToCHeck.push({ r, c });         // Below
+                boxesToCHeck.push({ r: r - 1, c }); // Above
+            } else {
+                boxesToCHeck.push({ r, c });         // Right
+                boxesToCHeck.push({ r, c: c - 1 }); // Left
+            }
+
+            let madeBox = false;
+
+            for (const box of boxesToCHeck) {
+                if (box.r < 0 || box.c < 0 || box.r >= 5 || box.c >= 5) continue;
+                if (newBoxes[`${box.r}-${box.c}`]) continue; // Already owned
+
+                if (isBoxComplete(box.r, box.c, newLines)) {
+                    // Claim it!
+                    newBoxes[`${box.r}-${box.c}`] = playerId;
+                    boxesCompleted++;
+                    totalClaimedThisTurn++;
+                    madeBox = true;
+
+                    // Now see if this box formation opens up neighbors? 
+                    // No, filling a box doesn't inherently open a neighbor, 
+                    // BUT adding the *missing line* to fill it might have triggered OTHER boxes.
+                    // Wait, the logic is: 
+                    // 1. User adds line.
+                    // 2. We check if that line closed a box.
+                    // 3. IF we closed a box (or more), we keep turn.
+                    // 4. ALSO, we check the ENTIRE board for any NEW 3-sided boxes that we can claim "eloquently"?
+                    // Actually, standard "chaining" in the user request likely refers to:
+                    // "If I close a box, and that move effectively gives me a free line that ALSO closes another box, do it."
+                    // But in standard Dots & Boxes, you have to make the move.
+                    // "When boxes can connect eloquently, they should" implies automation.
+                    // So: After claiming a box, scan neighbors for 3-sided setups. 
+                    // Since we just added a line, we might have created a 3-sided scenario (which is bad strategy usually) 
+                    // OR we filled a 4th side.
+
+                    // Let's implement robust auto-fill:
+                    // Whenever we add a line, we scan neighbors. If a neighbor is NOW a 3-sided box (waiting for 4th), 
+                    // we AUTOMATICALLY ADD that 4th line and claim it, 
+                    // then repeat based on THAT new line.
+                }
+            }
+
+            // If we made a box, we might have opportunities to chain.
+            // Scan for any 3-sided boxes adjacent to the line we just placed?
+            // Actually, simply scanning the whole board or just neighbors for 3-sidedness is the key.
+            // Efficient approach: Scan neighbors of the currentLine. 
+            // If any neighbor box has 3 sides present, ADD the missing side to `linesToProcess`.
+
+            // Re-check neighbors for 3-sided state
+            for (const box of boxesToCHeck) {
+                if (box.r < 0 || box.c < 0 || box.r >= 5 || box.c >= 5) continue;
+                if (newBoxes[`${box.r}-${box.c}`]) continue;
+
+                const missing = getMissingSide(box.r, box.c, newLines);
+                if (missing) {
+                    // Auto-draw this line!
+                    if (!linesToProcess.includes(missing) && !newLines.includes(missing)) {
+                        linesToProcess.push(missing);
+                    }
+                }
+            }
         }
 
-        // Check Win (Total 9 boxes)
+        // Check Win (Total 25 boxes)
         const totalBoxesOwned = Object.keys(newBoxes).length;
         let matchStatus: GameState['matchStatus'] = 'playing';
         let winnerId: string | null = null;
@@ -1496,7 +1570,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             history = [...history, {
                 playerId: 'system',
                 action: 'info',
-                content: `${state.players[playerId].name} claimed ${boxesCompleted} box(es)!`,
+                content: `${state.players[playerId].name} claimed ${boxesCompleted} box(es)${boxesCompleted > 1 ? ' (Chain!)' : ''}!`,
                 timestamp: Date.now()
             }];
         } else {

@@ -66,16 +66,7 @@ export default function DotsAndBoxesGame({
     return (
         <div className="flex flex-col items-center justify-center h-full w-full max-w-2xl md:max-w-4xl mx-auto p-2 sm:p-4 select-none">
             {/* Prominent Turn Indicator */}
-            {isMyTurn && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="mb-4 px-6 py-3 bg-green-500/20 border-2 border-green-500 rounded-xl text-green-400 font-bold text-lg flex items-center gap-3 animate-pulse"
-                >
-                    <span className="w-4 h-4 bg-green-400 rounded-full animate-ping" />
-                    YOUR TURN - Draw a line!
-                </motion.div>
-            )}
+
 
             {/* Header / Scoreboard */}
             <div className="flex w-full justify-between items-center mb-4 sm:mb-6 bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-white/5">
