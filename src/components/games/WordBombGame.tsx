@@ -154,15 +154,21 @@ export default function WordBombGame({
             return;
         }
 
-        // Dictionary check
+        // Dictionary check (Parallel Execution for Speed)
         try {
-            const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-            if (!res.ok) {
-                // If dictionary fails, check if it's a name
-                const nameRes = await fetch(`https://api.genderize.io?name=${word}`);
+            // Start both requests immediately
+            const dictPromise = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+            const namePromise = fetch(`https://api.genderize.io?name=${word}`);
+
+            // Check dictionary first (most common)
+            const dictRes = await dictPromise;
+
+            if (!dictRes.ok) {
+                // If dictionary fails, check the name result (which is already loading/done)
+                const nameRes = await namePromise;
                 const nameData = await nameRes.json();
 
-                // If checking for name fails or probability is low, reject
+                // If name also fails or probability is low, reject
                 if (!nameData || !nameData.probability || nameData.probability < 0.8) {
                     setFeedback({ type: 'error', message: 'Not a valid word!' });
                     sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
@@ -170,11 +176,10 @@ export default function WordBombGame({
                     return;
                 }
             }
+            // If we get here, either Dictionary was OK OR Name was OK.
         } catch (error) {
             console.error('Validation check failed', error);
-            // If validation completely errors out (network), we might want to be permissive
-            // BUT for now, let's just log it and maybe allow it to prevent blocking play?
-            // "fail open" is usually better for games if APIs go down
+            // Fail open on network error to prevent blocking game
         }
 
         await sendAction('SUBMIT_WORD', { word });
