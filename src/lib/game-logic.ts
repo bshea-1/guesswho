@@ -316,6 +316,8 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
             return startConnect4Match(stateWithP2, state.hostId, playerId);
         } else if (state.gameType === 'word-bomb') {
             return startWordBombMatch(stateWithP2, state.hostId, playerId);
+        } else if (state.gameType === 'dots-and-boxes') {
+            return startDotsAndBoxesMatch(stateWithP2);
         }
 
         return stateWithP2;
