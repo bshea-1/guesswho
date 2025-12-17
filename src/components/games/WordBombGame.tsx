@@ -154,49 +154,71 @@ export default function WordBombGame({
             return;
         }
 
-        if (word.length < 3) {
-            setFeedback({ type: 'error', message: 'Too short! (Min 3 letters)' });
-            sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Too Short` });
-            setSubmitting(false);
+        // Length Validation
+        if (word.length < 2) {
+            setFeedback({ type: 'error', message: 'Too short!' });
             return;
         }
 
-        // Dictionary & Name check (Parallel + Robust Error Handling)
-        try {
-            // Helper to catch individual network errors so we don't abort the whole flow
-            const safeDictCheck = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
-                .then(res => res.ok) // true if 2xx, false if 4xx/5xx
-                .catch(() => false); // false if network error
+        // 2-Letter Word Check (Static Allowlist)
+        if (word.length === 2) {
+            const VALID_TWO_LETTER_WORDS = new Set([
+                'aa', 'ab', 'ad', 'ae', 'ag', 'ah', 'ai', 'al', 'am', 'an', 'ar', 'as', 'at', 'aw', 'ax', 'ay',
+                'ba', 'be', 'bi', 'bo', 'by', 'de', 'do', 'ed', 'ef', 'eh', 'el', 'em', 'en', 'er', 'es', 'et', 'ex',
+                'fa', 'fe', 'go', 'ha', 'he', 'hi', 'ho', 'id', 'if', 'in', 'is', 'it', 'jo', 'ka', 'ki',
+                'la', 'li', 'lo', 'ma', 'me', 'mi', 'mm', 'mo', 'mu', 'my', 'na', 'ne', 'no', 'nu',
+                'od', 'oe', 'of', 'oh', 'oi', 'ok', 'om', 'on', 'op', 'or', 'os', 'ow', 'ox', 'oy',
+                'pa', 'pe', 'pi', 'po', 'qi', 're', 'sh', 'si', 'so', 'ta', 'te', 'ti', 'to',
+                'uh', 'um', 'un', 'up', 'us', 'ut', 'we', 'wo', 'xi', 'xu', 'ya', 'ye', 'yo', 'za'
+            ]);
 
-            const safeNameCheck = fetch(`https://api.genderize.io?name=${word}`)
-                .then(res => res.json())
-                .then(data => !!(data && data.probability && data.probability >= 0.8))
-                .catch(() => false);
+            if (!VALID_TWO_LETTER_WORDS.has(word.toLowerCase())) {
+                setFeedback({ type: 'error', message: 'Invalid 2-letter word!' });
+                sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid` });
+                setSubmitting(false);
+                return;
+            }
+            // If valid 2-letter word, skip API check and submit directly!
+        } else {
+            // Length >= 3, proceed to API checks
 
-            const [isDictValid, isNameValid] = await Promise.all([safeDictCheck, safeNameCheck]);
 
-            // If NEITHER is valid, then we reject
-            if (!isDictValid && !isNameValid) {
-                setFeedback({ type: 'error', message: 'Not a valid word!' });
-                sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
+            // Dictionary & Name check (Parallel + Robust Error Handling)
+            try {
+                // Helper to catch individual network errors so we don't abort the whole flow
+                const safeDictCheck = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
+                    .then(res => res.ok) // true if 2xx, false if 4xx/5xx
+                    .catch(() => false); // false if network error
+
+                const safeNameCheck = fetch(`https://api.genderize.io?name=${word}`)
+                    .then(res => res.json())
+                    .then(data => !!(data && data.probability && data.probability >= 0.8))
+                    .catch(() => false);
+
+                const [isDictValid, isNameValid] = await Promise.all([safeDictCheck, safeNameCheck]);
+
+                // If NEITHER is valid, then we reject
+                if (!isDictValid && !isNameValid) {
+                    setFeedback({ type: 'error', message: 'Not a valid word!' });
+                    sendAction('UPDATE_TYPING', { text: `❌ "${word.toUpperCase()}" - Invalid Word` });
+                    setSubmitting(false);
+                    return;
+                }
+
+                // If we get here, AT LEAST ONE was valid.
+            } catch (error) {
+                console.error('Validation wrapper failed', error);
+                // This should rarely happen given the catches above, but if it does, strict fail.
+                setFeedback({ type: 'error', message: 'Validation check failed!' });
                 setSubmitting(false);
                 return;
             }
 
-            // If we get here, AT LEAST ONE was valid.
-        } catch (error) {
-            console.error('Validation wrapper failed', error);
-            // This should rarely happen given the catches above, but if it does, strict fail.
-            setFeedback({ type: 'error', message: 'Validation check failed!' });
+            await sendAction('SUBMIT_WORD', { word });
+            setInputWord('');
+            setFeedback({ type: 'success', message: 'Word accepted!' });
             setSubmitting(false);
-            return;
-        }
-
-        await sendAction('SUBMIT_WORD', { word });
-        setInputWord('');
-        setFeedback({ type: 'success', message: 'Word accepted!' });
-        setSubmitting(false);
-    }, [inputWord, submitting, myTurn, prompt, sendAction]);
+        }, [inputWord, submitting, myTurn, prompt, sendAction]);
 
     const handleJoinNextRound = () => {
         sendAction('JOIN_NEXT_ROUND', null);
