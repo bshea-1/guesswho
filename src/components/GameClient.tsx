@@ -253,8 +253,17 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                     </div>
                                 ) : (
                                     <div className="text-center py-4">
-                                        <p className="text-slate-400 animate-pulse">Waiting for host to start the game...</p>
+                                        <p className="text-slate-400 animate-pulse mb-4">Waiting for host to start the game...</p>
                                     </div>
+                                )}
+
+                                {game.queue.includes(playerId!) && (
+                                    <button
+                                        onClick={() => sendAction('LEAVE_QUEUE', null)}
+                                        className="w-full py-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 font-bold rounded-lg text-sm transition"
+                                    >
+                                        Leave Queue
+                                    </button>
                                 )}
                             </div>
                         </div>

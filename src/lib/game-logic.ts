@@ -13,7 +13,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -748,6 +748,27 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         return {
             ...state,
             queue: newQueue,
+        };
+    }
+
+    if (type === 'LEAVE_QUEUE') {
+        if (!state.queue.includes(playerId)) return state;
+
+        const newQueue = state.queue.filter(id => id !== playerId);
+
+        // If CAH, revert role to spectator when leaving queue
+        let newPlayers = state.players;
+        if (state.gameType === 'cah') {
+            newPlayers = {
+                ...state.players,
+                [playerId]: { ...state.players[playerId], role: 'spectator' }
+            };
+        }
+
+        return {
+            ...state,
+            queue: newQueue,
+            players: newPlayers
         };
     }
 

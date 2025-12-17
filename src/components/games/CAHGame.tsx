@@ -206,21 +206,21 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowCustomInput(!showCustomInput)}
-                                className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-xs font-bold transition"
+                                className="flex items-center gap-2 px-5 py-2 sm:px-6 sm:py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-sm sm:text-base font-bold transition shadow-lg active:scale-95"
                             >
-                                <Plus size={14} /> Custom
+                                <Plus size={20} /> Custom
                             </button>
                             <button
                                 disabled={selectedCards.length !== pickCount}
                                 onClick={handleSubmit}
                                 className={`
-                                    px-4 py-1 rounded-full font-bold text-xs transition-all
+                                    px-6 py-2 sm:px-8 sm:py-3 rounded-full font-bold text-sm sm:text-base transition-all shadow-lg active:scale-95
                                     ${selectedCards.length === pickCount
-                                        ? 'bg-green-500 hover:bg-green-400 text-white'
+                                        ? 'bg-green-500 hover:bg-green-400 text-white transform hover:scale-105'
                                         : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
                                 `}
                             >
-                                Submit
+                                Submit Selection
                             </button>
                         </div>
                     </div>
@@ -263,14 +263,14 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
                                 layoutId={`card-${idx}`}
                                 onClick={() => handleToggleCard(card)}
                                 className={`
-                                    flex-shrink-0 w-28 sm:w-36 h-36 sm:h-48 rounded-lg p-2 sm:p-3 
+                                    flex-shrink-0 w-40 sm:w-56 h-56 sm:h-80 rounded-xl p-4 sm:p-6 
                                     cursor-pointer shadow-lg border-2 transition-all snap-center
                                     ${selectedCards.includes(card)
-                                        ? 'bg-blue-600 text-white border-blue-400 -translate-y-2 shadow-blue-500/50'
-                                        : 'bg-white text-black border-transparent'}
+                                        ? 'bg-blue-600 text-white border-blue-400 -translate-y-4 shadow-blue-500/50 scale-105 z-10'
+                                        : 'bg-white text-black border-transparent hover:scale-105 active:scale-95'}
                                 `}
                             >
-                                <p className="font-bold text-xs sm:text-sm leading-snug select-none">{card}</p>
+                                <p className="font-bold text-sm sm:text-xl leading-snug select-none">{card}</p>
                             </motion.div>
                         ))}
                     </div>
