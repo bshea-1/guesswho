@@ -353,6 +353,51 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
     };
 }
 
+// --- DOTS AND BOXES LOGIC ---
+export const startDotsAndBoxesMatch = (gameState: GameState): GameState => {
+    // 3x3 Grid of boxes
+    const activePlayers = Object.values(gameState.players)
+        .filter(p => gameState.queue.length >= 2 ? gameState.queue.slice(0, 2).includes(p.id) : (p.role === 'player' || (p.role === 'host' && gameState.queue.length < 2)))
+        .slice(0, 2);
+
+    if (activePlayers.length < 2) {
+        throw new Error('Not enough players for Dots and Boxes (need 2)');
+    }
+
+    const p1 = activePlayers[0];
+    const p2 = activePlayers[1];
+
+    // Assign colors / IDs
+    // We reuse characterId for color: 'red' vs 'blue'
+    const newPlayers = { ...gameState.players };
+    newPlayers[p1.id] = { ...p1, role: 'player', characterId: 'red', wins: p1.wins || 0 };
+    newPlayers[p2.id] = { ...p2, role: 'player', characterId: 'blue', wins: p2.wins || 0 };
+
+    // Reset others to spectators
+    Object.keys(newPlayers).forEach(pid => {
+        if (pid !== p1.id && pid !== p2.id) {
+            newPlayers[pid] = { ...newPlayers[pid], role: 'spectator', characterId: null };
+        }
+    });
+
+    return {
+        ...gameState,
+        gameType: 'dots-and-boxes',
+        matchStatus: 'playing',
+        players: newPlayers,
+        turnPlayerId: p1.id,
+        dabLines: [],
+        dabBoxes: {},
+        history: [{
+            playerId: 'system',
+            action: 'info',
+            content: `Match started: ${p1.name} (Red) vs ${p2.name} (Blue)`,
+            timestamp: Date.now()
+        }]
+    };
+};
+
+
 export function processAction(state: GameState, action: GameActionEnvelope): GameState {
     const { playerId, type, payload } = action;
 
@@ -1200,377 +1245,319 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 playerId: 'system',
                 action: 'info',
                 content: `💥 ${player.name} gave up! ${newLives} lives left. New prompt: "${newPrompt}"`,
-                content: `Next Round! Czar is ${newPlayers[nextCzarId].name}`,
                 timestamp: Date.now()
             }]
         };
     }
 
     return state;
-}
+    // --- CAH ACTIONS ---
+    if (type === 'SUBMIT_CARDS') {
+        if (state.gameType !== 'cah') throw new Error('Invalid game type');
+        if (state.matchStatus !== 'playing') return state;
 
-// --- DOTS AND BOXES LOGIC ---
-export const startDotsAndBoxesMatch = (gameState: GameState): GameState => {
-    // 3x3 Grid of boxes
-    // Visual layout:
-    // . - . - . - .
-    // |   |   |   |
-    // . - . - . - .
-    // ...
-    // Lines:
-    // Horizontal: h-r-c (row 0-3, col 0-2) -> 4 * 3 = 12
-    // Vertical: v-r-c (row 0-2, col 0-3) -> 3 * 4 = 12
-    // Total lines = 24
+        // Cannot submit if Czar
+        if (playerId === state.cahCzarId) return state;
 
-    // Boxes: r-c (row 0-2, col 0-2) -> 3 * 3 = 9
+        // Cannot submit twice
+        if (state.cahSubmissions?.find(s => s.playerId === playerId)) return state;
 
-    const activePlayers = Object.values(gameState.players)
-        .filter(p => gameState.queue.length >= 2 ? gameState.queue.slice(0, 2).includes(p.id) : (p.role === 'player' || (p.role === 'host' && gameState.queue.length < 2)))
-        .slice(0, 2);
+        const cards: string[] = payload; // Array of card texts
+        const blackCard = state.cahBlackCard;
 
-    if (activePlayers.length < 2) {
-        throw new Error('Not enough players for Dots and Boxes (need 2)');
-    }
+        // Validate count
+        // if (!blackCard || cards.length !== blackCard.pick) {
+        // throw new Error(`Must submit exactly ${blackCard?.pick} cards`);
+        // }
+        // Relax check for MVP if client sends robustly? 
+        // No, keep it strict.
+        if (!blackCard) return state;
 
-    const p1 = activePlayers[0];
-    const p2 = activePlayers[1];
+        // Remove submitted cards from hand
+        const player = state.players[playerId];
+        const currentHand = (player.data?.hand as string[]) || [];
+        const newHand = currentHand.filter(c => !cards.includes(c));
 
-    // Assign colors / IDs
-    // We reuse characterId for color: 'red' vs 'blue'
-    const newPlayers = { ...gameState.players };
-    newPlayers[p1.id] = { ...p1, role: 'player', characterId: 'red', wins: p1.wins || 0 };
-    newPlayers[p2.id] = { ...p2, role: 'player', characterId: 'blue', wins: p2.wins || 0 };
-
-    // Reset others to spectators
-    Object.keys(newPlayers).forEach(pid => {
-        if (pid !== p1.id && pid !== p2.id) {
-            newPlayers[pid] = { ...newPlayers[pid], role: 'spectator', characterId: null };
-        }
-    });
-
-    return {
-        ...gameState,
-        gameType: 'dots-and-boxes',
-        matchStatus: 'playing',
-        players: newPlayers,
-        turnPlayerId: p1.id, // P1 starts
-        dabLines: [], // No lines drawn
-        dabBoxes: {}, // No boxes owned
-        history: [{
-            playerId: 'system',
-            action: 'info',
-            content: `Match started: ${p1.name} (Red) vs ${p2.name} (Blue)`,
-            timestamp: Date.now()
-        }]
-    };
-};
-
-// Deprecated or simplified
-export function startGame(state: GameState): GameState {
-    return state;
-}
-
-// --- CAH ACTIONS ---
-if (type === 'SUBMIT_CARDS') {
-    if (state.gameType !== 'cah') throw new Error('Invalid game type');
-    if (state.matchStatus !== 'playing') return state;
-
-    // Cannot submit if Czar
-    if (playerId === state.cahCzarId) return state;
-
-    // Cannot submit twice
-    if (state.cahSubmissions?.find(s => s.playerId === playerId)) return state;
-
-    const cards: string[] = payload; // Array of card texts
-    const blackCard = state.cahBlackCard;
-
-    // Validate count
-    // if (!blackCard || cards.length !== blackCard.pick) {
-    // throw new Error(`Must submit exactly ${blackCard?.pick} cards`);
-    // }
-    // Relax check for MVP if client sends robustly? 
-    // No, keep it strict.
-    if (!blackCard) return state;
-
-    // Remove submitted cards from hand
-    const player = state.players[playerId];
-    const currentHand = (player.data?.hand as string[]) || [];
-    const newHand = currentHand.filter(c => !cards.includes(c));
-
-    const newSubmissions = [...(state.cahSubmissions || []), {
-        playerId,
-        cards,
-        isWinner: false
-    }];
-
-    // Check if everyone submitted
-    // Everyone except Czar and specific spectators
-    // Active Players = Players who have 'data' initialized (hand)
-    // Wait, startCAHMatch initialized 'data' for participants.
-    // Spectators have data:null.
-    const activePlayers = Object.values(state.players).filter(p => p.role === 'player' && !!p.data && p.id !== state.cahCzarId);
-    const allSubmitted = activePlayers.every(p => newSubmissions.find(s => s.playerId === p.id));
-
-    let newPhase = state.cahPhase;
-    if (allSubmitted && activePlayers.length > 0) {
-        newPhase = 'judge';
-    }
-
-    const newPlayers = {
-        ...state.players,
-        [playerId]: {
-            ...player,
-            data: { ...player.data, hand: newHand }
-        }
-    };
-
-    return {
-        ...state,
-        players: newPlayers,
-        cahSubmissions: newSubmissions,
-        cahPhase: newPhase,
-        history: allSubmitted
-            ? [...state.history, { playerId: 'system', action: 'info', content: 'All players submitted! Czar is judging.', timestamp: Date.now() }]
-            : state.history
-    };
-}
-
-if (type === 'PICK_WINNER') {
-    if (state.gameType !== 'cah') throw new Error('Invalid game type');
-    if (state.matchStatus !== 'playing') return state;
-    if (playerId !== state.cahCzarId) throw new Error('Only Czar can pick winner');
-    if (state.cahPhase !== 'judge') throw new Error('Not judging phase');
-
-    const winningPlayerId = payload; // ID of winner
-
-    // Mark winner
-    const submission = state.cahSubmissions?.find(s => s.playerId === winningPlayerId);
-    if (!submission) throw new Error('Invalid winner selection');
-
-    // Update score
-    const winningPlayer = state.players[winningPlayerId];
-    const newScore = (winningPlayer.data?.score || 0) + 1;
-
-    const newPlayers = {
-        ...state.players,
-        [winningPlayerId]: {
-            ...winningPlayer,
-            data: { ...winningPlayer.data, score: newScore }
-        }
-    };
-
-    // Check for game over (5 wins)
-    const CAH_WIN_THRESHOLD = 5;
-    const isGameOver = newScore >= CAH_WIN_THRESHOLD;
-
-    return {
-        ...state,
-        players: newPlayers,
-        cahPhase: isGameOver ? 'result' : 'result',
-        cahSubmissions: state.cahSubmissions?.map(s => s.playerId === winningPlayerId ? { ...s, isWinner: true } : s),
-        winnerId: winningPlayerId,
-        matchStatus: isGameOver ? 'finished' : 'playing',
-        status: isGameOver ? 'lobby' : state.status,
-        turnPlayerId: null,
-        history: [...state.history, {
-            playerId: 'system',
-            action: 'WIN',
-            content: isGameOver
-                ? `${winningPlayer.name} WINS THE GAME with ${newScore} points! 🏆`
-                : `${winningPlayer.name} wins the round! (${newScore}/${CAH_WIN_THRESHOLD})`,
-            timestamp: Date.now()
-        }]
-    };
-}
-
-// CAH Next Round Logic (Piggybacking off START_MATCH or specialized handling)
-// We already intercepted START_MATCH? No, we didn't add logic there.
-// Let's add it here as a post-condition check or new action "CAH_NEXT_ROUND"
-
-// Actually, let's keep it simple: Host triggers "START_MATCH" (Start Next Match button).
-// In `START_MATCH` logic (Lines ~440), we have generic logic.
-// BUT we can add a specific override below if that logic doesn't suffice.
-// However, START_MATCH resets everything via `startCAHMatch`.
-// We want to PRESERVE scores.
-// So `startCAHMatch` is too destructive. 
-// We need `startCAHRound` really. 
-// Let's implement `CAH_NEXT_ROUND` action here.
-if (type === 'CAH_NEXT_ROUND') {
-    if (state.gameType !== 'cah') return state;
-    if (state.cahPhase !== 'result') return state;
-
-    // 1. Rotate Czar
-    // Get generic active players list (exclude pure spectators)
-    const activeIds = Object.values(state.players)
-        .filter(p => p.role === 'player')
-        .map(p => p.id)
-        .sort();
-
-    const currentCzarIndex = activeIds.indexOf(state.cahCzarId || '');
-    const nextCzarId = activeIds[(currentCzarIndex + 1) % activeIds.length] || activeIds[0];
-
-    // 2. Deal new cards
-    const newPlayers = { ...state.players };
-    Object.keys(newPlayers).forEach(pid => {
-        const p = newPlayers[pid];
-        if (p.role === 'player') {
-            const currentHand = (p.data?.hand as string[]) || [];
-            const needed = 7 - currentHand.length;
-            const newCards: string[] = [];
-            for (let i = 0; i < needed; i++) {
-                newCards.push(WHITE_CARDS[Math.floor(Math.random() * WHITE_CARDS.length)]);
-            }
-
-            newPlayers[pid] = {
-                ...p,
-                data: {
-                    ...p.data,
-                    hand: [...currentHand, ...newCards],
-                    isCzar: pid === nextCzarId
-                }
-            };
-        }
-    });
-
-    // 3. New Black Card
-    const newBlackCard = BLACK_CARDS[Math.floor(Math.random() * BLACK_CARDS.length)];
-
-    return {
-        ...state,
-        players: newPlayers,
-        cahBlackCard: newBlackCard,
-        cahSubmissions: [],
-        cahPhase: 'pick',
-        cahCzarId: nextCzarId,
-        turnPlayerId: nextCzarId,
-        winnerId: null, // Reset round winner
-        history: [...state.history, {
-            playerId: 'system',
-            action: 'info',
-            content: `Next Round! Czar is ${newPlayers[nextCzarId].name}`,
-            timestamp: Date.now()
-        }]
-    };
-}
-
-// --- DOTS AND BOXES ACTIONS ---
-if (type === 'DRAW_LINE') {
-    if (state.gameType !== 'dots-and-boxes') throw new Error('Invalid game type');
-    if (state.matchStatus !== 'playing') return state;
-    if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
-
-    const lineId: string = payload; // "h-0-0" or "v-0-0"
-
-    // Validation: Line must not be drawn yet
-    if (state.dabLines?.includes(lineId)) throw new Error('Line already drawn');
-
-    const newLines = [...(state.dabLines || []), lineId];
-    let boxesCompleted = 0;
-    const newBoxes = { ...(state.dabBoxes || {}) };
-
-    // Helper to check if a box is completed
-    // Box "r-c" needs: h-r-c, h-(r+1)-c, v-r-c, v-r-(c+1)
-    const checkCompletion = (r: number, c: number): boolean => {
-        if (r < 0 || c < 0 || r >= 3 || c >= 3) return false;
-        if (newBoxes[`${r}-${c}`]) return false; // Already owned
-
-        const top = newLines.includes(`h-${r}-${c}`);
-        const bottom = newLines.includes(`h-${r + 1}-${c}`);
-        const left = newLines.includes(`v-${r}-${c}`);
-        const right = newLines.includes(`v-${r}-${c + 1}`);
-
-        if (top && bottom && left && right) {
-            newBoxes[`${r}-${c}`] = playerId;
-            return true;
-        }
-        return false;
-    };
-
-    // Determine which boxes could be completed by this line
-    const [dir, rStr, cStr] = lineId.split('-');
-    const r = parseInt(rStr);
-    const c = parseInt(cStr);
-
-    if (dir === 'h') {
-        // Horizontal line at r,c borders box (r,c) (below line) and (r-1,c) (above line)
-        if (checkCompletion(r, c)) boxesCompleted++;
-        if (checkCompletion(r - 1, c)) boxesCompleted++;
-    } else {
-        // Vertical line at r,c borders box (r,c) (right of line) and (r,c-1) (left of line)
-        if (checkCompletion(r, c)) boxesCompleted++;
-        if (checkCompletion(r, c - 1)) boxesCompleted++;
-    }
-
-    // Check Win (Total 9 boxes)
-    const totalBoxesOwned = Object.keys(newBoxes).length;
-    let matchStatus: GameState['matchStatus'] = 'playing';
-    let winnerId: string | null = null;
-    let turnPlayerId = state.turnPlayerId;
-
-    let history = state.history;
-
-    if (boxesCompleted > 0) {
-        // Player gets another turn!
-        history = [...history, {
-            playerId: 'system',
-            action: 'info',
-            content: `${state.players[playerId].name} claimed ${boxesCompleted} box(es)!`,
-            timestamp: Date.now()
+        const newSubmissions = [...(state.cahSubmissions || []), {
+            playerId,
+            cards,
+            isWinner: false
         }];
-    } else {
-        // Switch turn
+
+        // Check if everyone submitted
+        // Everyone except Czar and specific spectators
+        // Active Players = Players who have 'data' initialized (hand)
+        // Wait, startCAHMatch initialized 'data' for participants.
+        // Spectators have data:null.
+        const activePlayers = Object.values(state.players).filter(p => p.role === 'player' && !!p.data && p.id !== state.cahCzarId);
+        const allSubmitted = activePlayers.every(p => newSubmissions.find(s => s.playerId === p.id));
+
+        let newPhase = state.cahPhase;
+        if (allSubmitted && activePlayers.length > 0) {
+            newPhase = 'judge';
+        }
+
+        const newPlayers = {
+            ...state.players,
+            [playerId]: {
+                ...player,
+                data: { ...player.data, hand: newHand }
+            }
+        };
+
+        return {
+            ...state,
+            players: newPlayers,
+            cahSubmissions: newSubmissions,
+            cahPhase: newPhase,
+            history: allSubmitted
+                ? [...state.history, { playerId: 'system', action: 'info', content: 'All players submitted! Czar is judging.', timestamp: Date.now() }]
+                : state.history
+        };
+    }
+
+    if (type === 'PICK_WINNER') {
+        if (state.gameType !== 'cah') throw new Error('Invalid game type');
+        if (state.matchStatus !== 'playing') return state;
+        if (playerId !== state.cahCzarId) throw new Error('Only Czar can pick winner');
+        if (state.cahPhase !== 'judge') throw new Error('Not judging phase');
+
+        const winningPlayerId = payload; // ID of winner
+
+        // Mark winner
+        const submission = state.cahSubmissions?.find(s => s.playerId === winningPlayerId);
+        if (!submission) throw new Error('Invalid winner selection');
+
+        // Update score
+        const winningPlayer = state.players[winningPlayerId];
+        const newScore = (winningPlayer.data?.score || 0) + 1;
+
+        const newPlayers = {
+            ...state.players,
+            [winningPlayerId]: {
+                ...winningPlayer,
+                data: { ...winningPlayer.data, score: newScore }
+            }
+        };
+
+        // Check for game over (5 wins)
+        const CAH_WIN_THRESHOLD = 5;
+        const isGameOver = newScore >= CAH_WIN_THRESHOLD;
+
+        return {
+            ...state,
+            players: newPlayers,
+            cahPhase: isGameOver ? 'result' : 'result',
+            cahSubmissions: state.cahSubmissions?.map(s => s.playerId === winningPlayerId ? { ...s, isWinner: true } : s),
+            winnerId: winningPlayerId,
+            matchStatus: isGameOver ? 'finished' : 'playing',
+            status: isGameOver ? 'lobby' : state.status,
+            turnPlayerId: null,
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'WIN',
+                content: isGameOver
+                    ? `${winningPlayer.name} WINS THE GAME with ${newScore} points! 🏆`
+                    : `${winningPlayer.name} wins the round! (${newScore}/${CAH_WIN_THRESHOLD})`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // CAH Next Round Logic (Piggybacking off START_MATCH or specialized handling)
+    // We already intercepted START_MATCH? No, we didn't add logic there.
+    // Let's add it here as a post-condition check or new action "CAH_NEXT_ROUND"
+
+    // Actually, let's keep it simple: Host triggers "START_MATCH" (Start Next Match button).
+    // In `START_MATCH` logic (Lines ~440), we have generic logic.
+    // BUT we can add a specific override below if that logic doesn't suffice.
+    // However, START_MATCH resets everything via `startCAHMatch`.
+    // We want to PRESERVE scores.
+    // So `startCAHMatch` is too destructive. 
+    // We need `startCAHRound` really. 
+    // Let's implement `CAH_NEXT_ROUND` action here.
+    if (type === 'CAH_NEXT_ROUND') {
+        if (state.gameType !== 'cah') return state;
+        if (state.cahPhase !== 'result') return state;
+
+        // 1. Rotate Czar
+        // Get generic active players list (exclude pure spectators)
         const activeIds = Object.values(state.players)
             .filter(p => p.role === 'player')
-            .map(p => p.id);
-        const currentIdx = activeIds.indexOf(playerId);
-        const nextId = activeIds[(currentIdx + 1) % activeIds.length];
-        turnPlayerId = nextId;
+            .map(p => p.id)
+            .sort();
+
+        const currentCzarIndex = activeIds.indexOf(state.cahCzarId || '');
+        const nextCzarId = activeIds[(currentCzarIndex + 1) % activeIds.length] || activeIds[0];
+
+        // 2. Deal new cards
+        const newPlayers = { ...state.players };
+        Object.keys(newPlayers).forEach(pid => {
+            const p = newPlayers[pid];
+            if (p.role === 'player') {
+                const currentHand = (p.data?.hand as string[]) || [];
+                const needed = 7 - currentHand.length;
+                const newCards: string[] = [];
+                for (let i = 0; i < needed; i++) {
+                    newCards.push(WHITE_CARDS[Math.floor(Math.random() * WHITE_CARDS.length)]);
+                }
+
+                newPlayers[pid] = {
+                    ...p,
+                    data: {
+                        ...p.data,
+                        hand: [...currentHand, ...newCards],
+                        isCzar: pid === nextCzarId
+                    }
+                };
+            }
+        });
+
+        // 3. New Black Card
+        const newBlackCard = BLACK_CARDS[Math.floor(Math.random() * BLACK_CARDS.length)];
+
+        return {
+            ...state,
+            players: newPlayers,
+            cahBlackCard: newBlackCard,
+            cahSubmissions: [],
+            cahPhase: 'pick',
+            cahCzarId: nextCzarId,
+            turnPlayerId: nextCzarId,
+            winnerId: null, // Reset round winner
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `Next Round! Czar is ${newPlayers[nextCzarId].name}`,
+                timestamp: Date.now()
+            }]
+        };
     }
 
-    const players = { ...state.players };
+    // --- DOTS AND BOXES ACTIONS ---
+    if (type === 'DRAW_LINE') {
+        if (state.gameType !== 'dots-and-boxes') throw new Error('Invalid game type');
+        if (state.matchStatus !== 'playing') return state;
+        if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
 
-    if (totalBoxesOwned === 9) {
-        matchStatus = 'finished';
-        // Count scores
-        const p1 = Object.values(players).find(p => p.role === 'player' && p.characterId === 'red');
-        const p2 = Object.values(players).find(p => p.role === 'player' && p.characterId === 'blue');
+        const lineId: string = payload; // "h-0-0" or "v-0-0"
 
-        const p1Score = Object.values(newBoxes).filter(id => id === p1?.id).length;
-        const p2Score = Object.values(newBoxes).filter(id => id === p2?.id).length;
+        // Validation: Line must not be drawn yet
+        if (state.dabLines?.includes(lineId)) throw new Error('Line already drawn');
 
-        if (p1Score > p2Score) {
-            winnerId = p1?.id || null;
-        } else if (p2Score > p1Score) {
-            winnerId = p2?.id || null;
+        const newLines = [...(state.dabLines || []), lineId];
+        let boxesCompleted = 0;
+        const newBoxes = { ...(state.dabBoxes || {}) };
+
+        // Helper to check if a box is completed
+        // Box "r-c" needs: h-r-c, h-(r+1)-c, v-r-c, v-r-(c+1)
+        const checkCompletion = (r: number, c: number): boolean => {
+            if (r < 0 || c < 0 || r >= 3 || c >= 3) return false;
+            if (newBoxes[`${r}-${c}`]) return false; // Already owned
+
+            const top = newLines.includes(`h-${r}-${c}`);
+            const bottom = newLines.includes(`h-${r + 1}-${c}`);
+            const left = newLines.includes(`v-${r}-${c}`);
+            const right = newLines.includes(`v-${r}-${c + 1}`);
+
+            if (top && bottom && left && right) {
+                newBoxes[`${r}-${c}`] = playerId;
+                return true;
+            }
+            return false;
+        };
+
+        // Determine which boxes could be completed by this line
+        const [dir, rStr, cStr] = lineId.split('-');
+        const r = parseInt(rStr);
+        const c = parseInt(cStr);
+
+        if (dir === 'h') {
+            // Horizontal line at r,c borders box (r,c) (below line) and (r-1,c) (above line)
+            if (checkCompletion(r, c)) boxesCompleted++;
+            if (checkCompletion(r - 1, c)) boxesCompleted++;
+        } else {
+            // Vertical line at r,c borders box (r,c) (right of line) and (r,c-1) (left of line)
+            if (checkCompletion(r, c)) boxesCompleted++;
+            if (checkCompletion(r, c - 1)) boxesCompleted++;
         }
-        // else draw
 
-        if (winnerId) {
-            players[winnerId]!.wins = (players[winnerId]!.wins || 0) + 1;
+        // Check Win (Total 9 boxes)
+        const totalBoxesOwned = Object.keys(newBoxes).length;
+        let matchStatus: GameState['matchStatus'] = 'playing';
+        let winnerId: string | null = null;
+        let turnPlayerId = state.turnPlayerId;
+
+        let history = state.history;
+
+        if (boxesCompleted > 0) {
+            // Player gets another turn!
+            history = [...history, {
+                playerId: 'system',
+                action: 'info',
+                content: `${state.players[playerId].name} claimed ${boxesCompleted} box(es)!`,
+                timestamp: Date.now()
+            }];
+        } else {
+            // Switch turn
+            const activeIds = Object.values(state.players)
+                .filter(p => p.role === 'player')
+                .map(p => p.id);
+            const currentIdx = activeIds.indexOf(playerId);
+            const nextId = activeIds[(currentIdx + 1) % activeIds.length];
+            turnPlayerId = nextId;
         }
 
-        history = [...history, {
-            playerId: 'system',
-            action: 'WIN',
-            content: winnerId
-                ? `${players[winnerId]?.name} wins Dots & Boxes (${Math.max(p1Score, p2Score)}-${Math.min(p1Score, p2Score)})!`
-                : `Draw! (${p1Score}-${p2Score})`,
-            timestamp: Date.now()
-        }];
+        const players = { ...state.players };
+
+        if (totalBoxesOwned === 9) {
+            matchStatus = 'finished';
+            // Count scores
+            const p1 = Object.values(players).find(p => p.role === 'player' && p.characterId === 'red');
+            const p2 = Object.values(players).find(p => p.role === 'player' && p.characterId === 'blue');
+
+            const p1Score = Object.values(newBoxes).filter(id => id === p1?.id).length;
+            const p2Score = Object.values(newBoxes).filter(id => id === p2?.id).length;
+
+            if (p1Score > p2Score) {
+                winnerId = p1?.id || null;
+            } else if (p2Score > p1Score) {
+                winnerId = p2?.id || null;
+            }
+            // else draw
+
+            let winnerName: string | undefined;
+            if (winnerId !== null) {
+                const winnerIdStr: string = winnerId as string;
+                const winner = players[winnerIdStr];
+                if (winner) {
+                    winner.wins = (winner.wins || 0) + 1;
+                    winnerName = winner.name;
+                }
+            }
+
+            history = [...history, {
+                playerId: 'system',
+                action: 'WIN',
+                content: winnerName
+                    ? `${winnerName} wins Dots & Boxes (${Math.max(p1Score, p2Score)}-${Math.min(p1Score, p2Score)})!`
+                    : `Draw! (${p1Score}-${p2Score})`,
+                timestamp: Date.now()
+            }];
+        }
+
+        return {
+            ...state,
+            dabLines: newLines,
+            dabBoxes: newBoxes,
+            turnPlayerId: matchStatus === 'finished' ? null : turnPlayerId,
+            matchStatus,
+            players,
+            winnerId,
+            history
+        };
     }
 
-    return {
-        ...state,
-        dabLines: newLines,
-        dabBoxes: newBoxes,
-        turnPlayerId: matchStatus === 'finished' ? null : turnPlayerId,
-        matchStatus,
-        players,
-        winnerId,
-        history
-    };
-}
-
-return state;
+    return state;
 }
 
