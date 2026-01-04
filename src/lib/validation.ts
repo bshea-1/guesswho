@@ -18,6 +18,7 @@ export const CreateRoomSchema = z.object({
     visibility: z.enum(['public', 'unlisted', 'private']),
     gameType: z.enum(['guess-who', 'word-bomb', 'connect-4', 'cah', 'dots-and-boxes', 'imposter']).default('guess-who'),
     imposterMode: z.enum(['text', 'irl']).optional(),
+    cahWinThreshold: z.number().min(3).max(10).optional(),
 });
 
 export const JoinRoomSchema = z.object({

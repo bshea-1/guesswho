@@ -16,7 +16,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: (result.error as any).errors[0].message }, { status: 400 }); // eslint-disable-line @typescript-eslint/no-explicit-any
         }
 
-        const { hostName, visibility, gameType, imposterMode } = result.data;
+        const { hostName, visibility, gameType, imposterMode, cahWinThreshold } = result.data;
         // Default name if empty string provided
         const cleanName = sanitizeName(hostName || 'Host');
 
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
         const initialGame = createInitialGameState(roomId, cleanName, hostId, gameType, {
             visibility,
             spectatorView: 'log', // Default
+            cahWinThreshold: cahWinThreshold || 5,
         }, imposterMode);
 
         await gameStorage.saveGame(roomId, initialGame);

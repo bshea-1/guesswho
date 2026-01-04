@@ -24,6 +24,7 @@ export default function HomeClient() {
     const [visibility, setVisibility] = useState<'public' | 'private'>('public');
     const [pendingAction, setPendingAction] = useState<'create' | null>(null);
     const [imposterSubMode, setImposterSubMode] = useState<'text' | 'irl'>('text');
+    const [cahWinThreshold, setCahWinThreshold] = useState<number>(5);
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
@@ -83,6 +84,7 @@ export default function HomeClient() {
                         hostName: localName,
                         gameType: selectedGame,
                         imposterMode: selectedGame === 'imposter' ? imposterSubMode : undefined,
+                        cahWinThreshold: selectedGame === 'cah' ? cahWinThreshold : undefined,
                         visibility
                     }),
                 });
@@ -554,7 +556,7 @@ export default function HomeClient() {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="font-bold text-white">Imposter</div>
-                                                <div className="text-sm text-slate-400">Social deduction (Exactly 3 Players)</div>
+                                                <div className="text-sm text-slate-400">Social deduction (3+ Players)</div>
                                             </div>
                                         </button>
 

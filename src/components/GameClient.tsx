@@ -261,7 +261,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                     </div>
                                     <p className="text-slate-500 text-xs text-center mt-2">
                                         {game.gameType === 'cah' ? 'Cards Against Humanity needs 3+ players'
-                                            : game.gameType === 'imposter' ? 'Imposter needs exactly 3 players'
+                                            : game.gameType === 'imposter' ? 'Imposter needs 3+ players'
                                                 : 'Waiting for more players...'}
                                     </p>
                                 </div>
@@ -269,7 +269,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                 {iamHost ? (
                                     <div className="flex flex-col justify-center">
                                         <button
-                                            disabled={game.gameType === 'cah' ? game.queue.length < 3 : game.gameType === 'imposter' ? game.queue.length !== 3 : game.queue.length < 2}
+                                            disabled={game.gameType === 'cah' ? game.queue.length < 3 : game.gameType === 'imposter' ? game.queue.length < 3 : game.queue.length < 2}
                                             onClick={() => sendAction('START_MATCH', null)}
                                             className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold rounded-xl text-xl transition shadow-lg"
                                         >
@@ -277,7 +277,7 @@ export default function GameClient({ roomId }: { roomId: string }) {
                                         </button>
                                         <p className="text-slate-500 text-xs text-center mt-2">
                                             {game.gameType === 'cah' ? 'Needs at least 3 players'
-                                                : game.gameType === 'imposter' ? 'Needs exactly 3 players'
+                                                : game.gameType === 'imposter' ? 'Needs 3+ players'
                                                     : 'Needs at least 2 players'}
                                         </p>
                                     </div>

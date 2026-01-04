@@ -64,7 +64,7 @@ export type GameState = {
 
     // CAH Specific State
     cahBlackCard?: { text: string; pick: number; }; // Current black card
-    cahSubmissions?: { playerId: string; cards: string[]; isWinner?: boolean; }[];
+    cahSubmissions?: { playerId: string; cards: string[]; isWinner?: boolean; isCustom?: boolean; }[];
     cahPhase?: 'pick' | 'judge' | 'result';
     cahCzarId?: string; // Player ID of the Card Czar
 
@@ -97,7 +97,9 @@ export type GameState = {
     settings: {
         spectatorView: 'log' | 'boards';
         visibility: 'public' | 'unlisted' | 'private';
+        cahWinThreshold?: number; // Host-configurable wins needed (default 5)
     };
+    cahUsedWhiteCards?: string[]; // Track used cards to prevent duplicates
     createdAt: number;
     // Client-sync
     serverTime?: number;

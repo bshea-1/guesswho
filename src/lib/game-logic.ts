@@ -181,11 +181,23 @@ function startCAHMatch(state: GameState, p1Id: string, p2Id: string): GameState 
 
     const resetPlayers = { ...state.players };
 
-    // Deal Hand Helper
-    const dealHand = () => {
+    // Create shuffled deck (Fisher-Yates) for unique card dealing
+    const deck = [...WHITE_CARDS];
+    for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
+    let deckIndex = 0;
+    const usedCards: string[] = [];
+
+    // Deal Hand Helper - draws from shuffled deck
+    const dealHand = (): string[] => {
         const hand: string[] = [];
-        for (let i = 0; i < 7; i++) {
-            hand.push(WHITE_CARDS[Math.floor(Math.random() * WHITE_CARDS.length)]);
+        for (let i = 0; i < 7 && deckIndex < deck.length; i++) {
+            const card = deck[deckIndex++];
+            hand.push(card);
+            usedCards.push(card);
         }
         return hand;
     };
@@ -229,6 +241,7 @@ function startCAHMatch(state: GameState, p1Id: string, p2Id: string): GameState 
         cahSubmissions: [],
         cahPhase: 'pick',
         cahCzarId: czarId,
+        cahUsedWhiteCards: usedCards, // Track used cards
 
         history: [{
             playerId: 'system',
@@ -241,16 +254,22 @@ function startCAHMatch(state: GameState, p1Id: string, p2Id: string): GameState 
 }
 
 function startImposterMatch(state: GameState): GameState {
-    // Imposter requires exactly 3 players
-    if (state.queue.length !== 3) {
-        throw new Error('Imposter requires exactly 3 players');
+    // Imposter requires at least 3 players
+    if (state.queue.length < 3) {
+        throw new Error('Imposter requires at least 3 players');
     }
 
+    // Shuffle player order for true randomization (Fisher-Yates)
     const playerIds = [...state.queue];
+    for (let i = playerIds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [playerIds[i], playerIds[j]] = [playerIds[j], playerIds[i]];
+    }
+
     const resetPlayers = { ...state.players };
 
-    // Pick random imposter
-    const imposterIndex = Math.floor(Math.random() * 3);
+    // Pick random imposter from shuffled list
+    const imposterIndex = Math.floor(Math.random() * playerIds.length);
     const imposterId = playerIds[imposterIndex];
 
     // Pick word pair (avoiding used ones)
@@ -688,9 +707,9 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             }
             return startCAHMatch(stateWithQueue, p1Id, p2Id);
         } else if (state.gameType === 'imposter') {
-            // Imposter requires exactly 3 players
-            if (currentQueue.length !== 3) {
-                throw new Error('Imposter requires exactly 3 players');
+            // Imposter requires at least 3 players
+            if (currentQueue.length < 3) {
+                throw new Error('Imposter requires at least 3 players');
             }
             return startImposterMatch(stateWithQueue);
         } else if (state.gameType === 'dots-and-boxes') {
@@ -1457,10 +1476,14 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const currentHand = (player.data?.hand as string[]) || [];
         const newHand = currentHand.filter(c => !cards.includes(c));
 
+        // Check if any submitted card is custom (not from WHITE_CARDS)
+        const isCustomSubmission = cards.some(c => !WHITE_CARDS.includes(c));
+
         const newSubmissions = [...(state.cahSubmissions || []), {
             playerId,
             cards,
-            isWinner: false
+            isWinner: false,
+            isCustom: isCustomSubmission
         }];
 
         // Check if everyone submitted
@@ -1507,9 +1530,10 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
         const submission = state.cahSubmissions?.find(s => s.playerId === winningPlayerId);
         if (!submission) throw new Error('Invalid winner selection');
 
-        // Update score
+        // Update score - custom cards get half points
         const winningPlayer = state.players[winningPlayerId];
-        const newScore = (winningPlayer.data?.score || 0) + 1;
+        const pointsToAdd = submission.isCustom ? 0.5 : 1;
+        const newScore = (winningPlayer.data?.score || 0) + pointsToAdd;
 
         const newPlayers = {
             ...state.players,
@@ -1519,14 +1543,14 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             }
         };
 
-        // Check for game over (5 wins)
-        const CAH_WIN_THRESHOLD = 5;
+        // Check for game over (configurable threshold, default 5)
+        const CAH_WIN_THRESHOLD = state.settings.cahWinThreshold || 5;
         const isGameOver = newScore >= CAH_WIN_THRESHOLD;
 
         return {
             ...state,
             players: newPlayers,
-            cahPhase: isGameOver ? 'result' : 'result',
+            cahPhase: 'result',
             cahSubmissions: state.cahSubmissions?.map(s => s.playerId === winningPlayerId ? { ...s, isWinner: true } : s),
             winnerId: winningPlayerId,
             matchStatus: isGameOver ? 'finished' : 'playing',
@@ -1537,7 +1561,7 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 action: 'WIN',
                 content: isGameOver
                     ? `${winningPlayer.name} WINS THE GAME with ${newScore} points! 🏆`
-                    : `${winningPlayer.name} wins the round! (${newScore}/${CAH_WIN_THRESHOLD})`,
+                    : `${winningPlayer.name} wins the round${submission.isCustom ? ' (Custom)' : ''}! (+${pointsToAdd}, Total: ${newScore}/${CAH_WIN_THRESHOLD})`,
                 timestamp: Date.now()
             }]
         };

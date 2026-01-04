@@ -133,6 +133,7 @@ export default function CAHGame({ gameState, playerId, sendAction }: Props) {
                                 {cahPhase === 'result' && sub.isWinner && (
                                     <div className="mt-2 text-center">
                                         <span className="bg-yellow-500 text-black font-bold px-2 py-0.5 rounded text-xs">WINNER</span>
+                                        {sub.isCustom && <span className="ml-1 bg-purple-500 text-white font-bold px-2 py-0.5 rounded text-xs">Custom (+0.5)</span>}
                                         <p className="text-[10px] mt-1 text-slate-500">{players[sub.playerId]?.name}</p>
                                     </div>
                                 )}
