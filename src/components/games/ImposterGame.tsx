@@ -400,11 +400,13 @@ export default function ImposterGame({ game, playerId, sendAction }: Props) {
                         </div>
                     </div>
 
-                    {/* Scoreboard */}
+                    {/* Scoreboard (Wins) */}
                     <div className="bg-slate-800/50 rounded-xl p-4 mb-6">
-                        <h3 className="font-bold text-slate-300 mb-3">Scoreboard</h3>
+                        <h3 className="font-bold text-slate-300 mb-3">Wins</h3>
                         <div className="space-y-2">
-                            {sortedPlayers.map((pid, i) => (
+                            {[...(imposterPlayerOrder || [])].sort((a, b) => {
+                                return (players[b]?.wins || 0) - (players[a]?.wins || 0);
+                            }).map((pid, i) => (
                                 <div key={pid} className={`flex justify-between items-center p-2 rounded ${i === 0 ? 'bg-yellow-500/20' : ''}`}>
                                     <div className="flex items-center gap-2">
                                         {i === 0 && <span className="text-yellow-400">👑</span>}
@@ -413,7 +415,7 @@ export default function ImposterGame({ game, playerId, sendAction }: Props) {
                                         </span>
                                     </div>
                                     <span className="font-bold text-xl text-purple-400">
-                                        {imposterScores?.[pid] || 0}
+                                        {players[pid]?.wins || 0}
                                     </span>
                                 </div>
                             ))}

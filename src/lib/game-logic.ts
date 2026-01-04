@@ -2040,27 +2040,28 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 playersWithMaxVotes[0] === imposterId &&
                 maxVotes >= 2;
 
-            // Calculate scores
-            const newScores = { ...(state.imposterScores || {}) };
+            // Simple wins system - winner gets +1 win
+            const newPlayers = { ...state.players };
             const playerOrder = state.imposterPlayerOrder || [];
 
-            // +1 for each correct vote
-            newVotes.forEach(v => {
-                if (v.votedForId === imposterId) {
-                    newScores[v.voterId] = (newScores[v.voterId] || 0) + 1;
-                }
-            });
-
             if (imposterEliminated) {
-                // Non-imposters win: +2 bonus each
+                // Non-imposters win: each gets +1 win
                 playerOrder.forEach(pid => {
-                    if (pid !== imposterId) {
-                        newScores[pid] = (newScores[pid] || 0) + 2;
+                    if (pid !== imposterId && newPlayers[pid]) {
+                        newPlayers[pid] = {
+                            ...newPlayers[pid],
+                            wins: (newPlayers[pid].wins || 0) + 1
+                        };
                     }
                 });
             } else {
-                // Imposter wins: +3 points
-                newScores[imposterId] = (newScores[imposterId] || 0) + 3;
+                // Imposter wins: +1 win
+                if (newPlayers[imposterId]) {
+                    newPlayers[imposterId] = {
+                        ...newPlayers[imposterId],
+                        wins: (newPlayers[imposterId].wins || 0) + 1
+                    };
+                }
             }
 
             const imposterName = state.players[imposterId]?.name || 'Unknown';
@@ -2070,8 +2071,8 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
 
             return {
                 ...state,
+                players: newPlayers,
                 imposterVotes: newVotes,
-                imposterScores: newScores,
                 imposterPhase: 'results',
                 matchStatus: 'finished',
                 winnerId: imposterEliminated ? null : imposterId, // For display purposes
