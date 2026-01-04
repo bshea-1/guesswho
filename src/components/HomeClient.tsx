@@ -336,26 +336,7 @@ export default function HomeClient() {
                                 Enter Game
                             </button>
 
-                            {isSpectatorMode && (
-                                <button
-                                    onClick={() => {
-                                        // Anonymous watch logic
-                                        // Case 1: Already Joined (unlikely here if we delaying join? No, wait.)
-                                        // If we delayed join, we need to JOIN now as spectator with name 'Spectator'
-                                        if (!playerId) {
-                                            executeJoin(roomCode, true, 'Spectator');
-                                        } else {
-                                            // Legacy/Special case
-                                            setUsername('Spectator');
-                                            router.push(`/game/${roomId}`);
-                                        }
-                                    }}
-                                    disabled={loading}
-                                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 p-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
-                                >
-                                    <Tv size={20} /> Watch Anonymously
-                                </button>
-                            )}
+
 
                             {error && (
                                 <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg text-center">
@@ -455,14 +436,9 @@ export default function HomeClient() {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button onClick={() => setMode('join')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
-                                            <Users size={20} /> Join
-                                        </button>
-                                        <button onClick={() => router.push('/matches')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
-                                            <Eye size={20} /> Watch
-                                        </button>
-                                    </div>
+                                    <button onClick={() => setMode('join')} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl font-bold transition">
+                                        <Users size={20} /> Join
+                                    </button>
                                 </motion.div>
                             )
                         )}
