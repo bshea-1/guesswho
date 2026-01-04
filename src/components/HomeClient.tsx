@@ -525,7 +525,7 @@ export default function HomeClient() {
                                         </div>
                                         <div>
                                             <div className="font-bold text-white">Dots & Boxes</div>
-                                            <div className="text-sm text-slate-400">Classic strategy game (2 Players)</div>
+                                            <div className="text-sm text-slate-400">Classic strategy game</div>
                                         </div>
                                     </button>
 
