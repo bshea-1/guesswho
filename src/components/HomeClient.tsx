@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/lib/store';
 import { GameType } from '@/lib/types';
-import { Loader2, Plus, Users, Eye, Tv, X, Check, Dices, Grid3X3, Search, Skull } from 'lucide-react'; // Added icons
+import { Loader2, Plus, Users, Eye, Tv, X, Check, Dices, Grid3X3, Search, Skull, UserX } from 'lucide-react';
 
 export default function HomeClient() {
     const router = useRouter();
@@ -23,6 +23,7 @@ export default function HomeClient() {
     const [loadingMessage, setLoadingMessage] = useState('');
     const [visibility, setVisibility] = useState<'public' | 'private'>('public');
     const [pendingAction, setPendingAction] = useState<'create' | null>(null);
+    const [imposterSubMode, setImposterSubMode] = useState<'text' | 'irl'>('text');
 
     // Check if there's an active game
     const hasActiveGame = !!(roomId && playerId);
@@ -79,9 +80,9 @@ export default function HomeClient() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        hostName: localName, // Pass name directly
+                        hostName: localName,
                         gameType: selectedGame,
-                        mode: undefined,
+                        imposterMode: selectedGame === 'imposter' ? imposterSubMode : undefined,
                         visibility
                     }),
                 });
@@ -541,8 +542,53 @@ export default function HomeClient() {
                                             <div className="text-sm text-slate-400">Classic strategy game (2 Players)</div>
                                         </div>
                                     </button>
+
+                                    {/* Imposter Game Selection */}
+                                    <div className="space-y-2">
+                                        <button
+                                            onClick={() => setSelectedGame('imposter')}
+                                            className={`w-full flex items-center gap-4 bg-slate-800 hover:bg-purple-900/40 p-4 rounded-xl border transition group text-left ${selectedGame === 'imposter' ? 'border-purple-500 bg-purple-900/30' : 'border-slate-700 hover:border-purple-500'}`}
+                                        >
+                                            <div className="p-3 bg-purple-500/20 rounded-lg text-purple-400 group-hover:text-purple-300">
+                                                <UserX size={24} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="font-bold text-white">Imposter</div>
+                                                <div className="text-sm text-slate-400">Social deduction (Exactly 3 Players)</div>
+                                            </div>
+                                        </button>
+
+                                        {/* Sub-mode Selection */}
+                                        {selectedGame === 'imposter' && (
+                                            <div className="flex gap-2 pl-2">
+                                                <button
+                                                    onClick={() => setImposterSubMode('text')}
+                                                    className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition ${imposterSubMode === 'text' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                                                >
+                                                    💬 Text Mode
+                                                    <p className="text-xs font-normal opacity-70 mt-1">Type hints in-app</p>
+                                                </button>
+                                                <button
+                                                    onClick={() => setImposterSubMode('irl')}
+                                                    className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition ${imposterSubMode === 'irl' ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                                                >
+                                                    🗣️ IRL Mode
+                                                    <p className="text-xs font-normal opacity-70 mt-1">Speak hints aloud</p>
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {selectedGame === 'imposter' && (
+                                            <button
+                                                onClick={() => handleGameSelect('imposter')}
+                                                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition"
+                                            >
+                                                Continue with {imposterSubMode === 'text' ? 'Text' : 'IRL'} Mode
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <button onClick={() => setMode(null)} className="w-full text-slate-500 text-sm hover:text-white pt-2">Cancel</button>
+                                <button onClick={() => { setMode(null); setSelectedGame('guess-who'); }} className="w-full text-slate-500 text-sm hover:text-white pt-2">Cancel</button>
                             </motion.div>
                         )}
 

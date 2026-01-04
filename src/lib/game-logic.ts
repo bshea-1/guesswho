@@ -4,6 +4,7 @@ import { sanitizeName } from './validation';
 import { createConnect4Board, dropPiece, checkConnect4Win, isBoardFull } from './games/connect4';
 import { createInitialWordBombData, getRandomPrompt, INITIAL_TIMER_SECONDS, TIMER_DECREASE_PER_ROUND, MIN_TIMER_SECONDS } from './games/word-bomb';
 import { BLACK_CARDS, WHITE_CARDS } from './games/cah-data';
+import { getRandomWordPair } from './games/imposter-data';
 
 
 export function checkGuess(character: any, question: { category: string, value: any }): boolean { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -13,7 +14,7 @@ export function checkGuess(character: any, question: { category: string, value: 
 
 export type GameActionEnvelope = {
     playerId: string;
-    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE' | 'TRANSFER_HOST' | 'LEAVE_PARTY' | 'DRAW_LINE' | 'LEAVE_NEXT_ROUND';
+    type: 'ASK' | 'ANSWER' | 'GUESS' | 'END_TURN' | 'TOGGLE_READY' | 'TOGGLE_ELIMINATION' | 'FORFEIT' | 'UPDATE_NAME' | 'CHAT' | 'TOGGLE_QUEUE_PLAYER' | 'START_MATCH' | 'BAN_PLAYER' | 'END_PARTY' | 'REORDER_QUEUE' | 'KICK_PLAYER' | 'DROP_PIECE' | 'SUBMIT_WORD' | 'TIMER_EXPIRED' | 'UPDATE_TYPING' | 'JOIN_NEXT_ROUND' | 'START_WORD_BOMB_MATCH' | 'RESET_LOBBY_TIMER' | 'FORFEIT_WORD' | 'SUBMIT_CARDS' | 'PICK_WINNER' | 'CAH_NEXT_ROUND' | 'LEAVE_QUEUE' | 'TRANSFER_HOST' | 'LEAVE_PARTY' | 'DRAW_LINE' | 'LEAVE_NEXT_ROUND' | 'IMPOSTER_READY' | 'SUBMIT_IMPOSTER_HINT' | 'END_IMPOSTER_TURN' | 'SUBMIT_IMPOSTER_VOTE' | 'IMPOSTER_NEXT_ROUND';
     payload?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
@@ -239,15 +240,99 @@ function startCAHMatch(state: GameState, p1Id: string, p2Id: string): GameState 
     };
 }
 
+function startImposterMatch(state: GameState): GameState {
+    // Imposter requires exactly 3 players
+    if (state.queue.length !== 3) {
+        throw new Error('Imposter requires exactly 3 players');
+    }
+
+    const playerIds = [...state.queue];
+    const resetPlayers = { ...state.players };
+
+    // Pick random imposter
+    const imposterIndex = Math.floor(Math.random() * 3);
+    const imposterId = playerIds[imposterIndex];
+
+    // Pick word pair (avoiding used ones)
+    const usedPairs = state.imposterUsedPairs || [];
+    const { pair, index } = getRandomWordPair(usedPairs);
+
+    // Setup players
+    playerIds.forEach((pid, idx) => {
+        const isImposter = pid === imposterId;
+        resetPlayers[pid] = {
+            ...resetPlayers[pid],
+            role: 'player',
+            characterId: null,
+            eliminatedIds: [],
+            isReady: true,
+            // Private data - imposter gets hint, others get secret word
+            data: isImposter
+                ? { isImposter: true, hintWord: pair.hint }
+                : { isImposter: false, secretWord: pair.secret }
+        };
+    });
+
+    // Reset spectators
+    Object.keys(resetPlayers).forEach(pid => {
+        if (!playerIds.includes(pid)) {
+            resetPlayers[pid] = {
+                ...resetPlayers[pid],
+                role: 'spectator',
+                data: null
+            };
+        }
+    });
+
+    // Preserve existing scores or initialize
+    const existingScores = state.imposterScores || {};
+    const scores: Record<string, number> = {};
+    playerIds.forEach(pid => {
+        scores[pid] = existingScores[pid] || 0;
+    });
+
+    return {
+        ...state,
+        players: resetPlayers,
+        queue: [],
+        status: 'playing',
+        matchStatus: 'playing',
+        turnPlayerId: playerIds[0], // First player in order starts
+
+        // Imposter-specific state
+        imposterId,
+        imposterSecretWord: pair.secret, // Server-side only, filtered before sending to imposter
+        imposterHintWord: pair.hint,
+        imposterTurnNumber: 1,
+        imposterCurrentPlayerIndex: 0,
+        imposterPlayerOrder: playerIds,
+        imposterHints: [],
+        imposterVotes: [],
+        imposterPhase: 'reveal',
+        imposterScores: scores,
+        imposterUsedPairs: [...usedPairs, index],
+        imposterReadyPlayers: [],
+
+        history: [{
+            playerId: 'system',
+            action: 'info',
+            content: `Imposter game started! 3 players, 9 turns, 1 imposter...`,
+            timestamp: Date.now()
+        }],
+        chat: state.chat.filter(m => m.scope !== 'game'),
+    };
+}
+
 
 export function createInitialGameState(
     roomId: string,
     hostName: string,
     hostId: string,
     gameType: GameState['gameType'],
-    settings: GameState['settings']
+    settings: GameState['settings'],
+    imposterMode?: 'text' | 'irl'
 ): GameState {
-    return {
+    const baseState: GameState = {
         roomId,
         gameType,
         hostId,
@@ -275,6 +360,17 @@ export function createInitialGameState(
         settings,
         createdAt: Date.now(),
     };
+
+    // For Imposter: set mode and add host to queue
+    if (gameType === 'imposter') {
+        return {
+            ...baseState,
+            imposterMode: imposterMode || 'text',
+            queue: [hostId]
+        };
+    }
+
+    return baseState;
 }
 
 export function joinGame(state: GameState, playerId: string, playerName: string): GameState {
@@ -303,9 +399,15 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
             }
         };
         // Auto-start using Host and New Player
-        // CAH requires 3+ players, so don't auto-start
+        // CAH and Imposter require 3+ players, so don't auto-start
         if (state.gameType === 'cah') {
             // For CAH: Add both players to queue and wait for more
+            return {
+                ...stateWithP2,
+                queue: [state.hostId, playerId]
+            };
+        } else if (state.gameType === 'imposter') {
+            // For Imposter: Add both players to queue and wait for 3rd
             return {
                 ...stateWithP2,
                 queue: [state.hostId, playerId]
@@ -334,8 +436,8 @@ export function joinGame(state: GameState, playerId: string, playerName: string)
         wins: 0,
     };
 
-    // For CAH: Everyone joins the queue automatically during lobby
-    if (state.gameType === 'cah' && state.matchStatus === 'lobby') {
+    // For CAH and Imposter: Everyone joins the queue automatically during lobby
+    if ((state.gameType === 'cah' || state.gameType === 'imposter') && state.matchStatus === 'lobby') {
         return {
             ...state,
             players: {
@@ -585,6 +687,12 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
                 throw new Error('Cards Against Humanity requires at least 3 players');
             }
             return startCAHMatch(stateWithQueue, p1Id, p2Id);
+        } else if (state.gameType === 'imposter') {
+            // Imposter requires exactly 3 players
+            if (currentQueue.length !== 3) {
+                throw new Error('Imposter requires exactly 3 players');
+            }
+            return startImposterMatch(stateWithQueue);
         } else if (state.gameType === 'dots-and-boxes') {
             return startDotsAndBoxesMatch({ ...stateWithQueue, queue: currentQueue });
         }
@@ -1703,6 +1811,283 @@ export function processAction(state: GameState, action: GameActionEnvelope): Gam
             winnerId,
             history
         };
+    }
+
+    // --- IMPOSTER ACTIONS ---
+
+    // Player acknowledges role reveal and is ready to play
+    if (type === 'IMPOSTER_READY') {
+        if (state.gameType !== 'imposter') return state;
+        if (state.imposterPhase !== 'reveal') return state;
+
+        const readyPlayers = state.imposterReadyPlayers || [];
+        if (readyPlayers.includes(playerId)) return state; // Already ready
+
+        const newReadyPlayers = [...readyPlayers, playerId];
+        const playerOrder = state.imposterPlayerOrder || [];
+
+        // If all 3 players are ready, transition to playing phase
+        if (newReadyPlayers.length >= 3 && playerOrder.length === 3) {
+            return {
+                ...state,
+                imposterReadyPlayers: newReadyPlayers,
+                imposterPhase: 'playing',
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'info',
+                    content: 'All players ready! The game begins...',
+                    timestamp: Date.now()
+                }]
+            };
+        }
+
+        return {
+            ...state,
+            imposterReadyPlayers: newReadyPlayers
+        };
+    }
+
+    // Text Mode: Submit a hint
+    if (type === 'SUBMIT_IMPOSTER_HINT') {
+        if (state.gameType !== 'imposter') return state;
+        if (state.imposterMode !== 'text') throw new Error('Not in Text Mode');
+        if (state.imposterPhase !== 'playing') throw new Error('Not in playing phase');
+        if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
+
+        const hint = (payload?.hint || payload || '').trim();
+        if (!hint) throw new Error('Hint cannot be empty');
+
+        const turnNumber = state.imposterTurnNumber || 1;
+        const playerOrder = state.imposterPlayerOrder || [];
+        const currentIndex = state.imposterCurrentPlayerIndex || 0;
+
+        // Add hint to timeline
+        const newHints = [...(state.imposterHints || []), {
+            playerId,
+            hint,
+            turnNumber
+        }];
+
+        // Clear imposter's hint word after their first turn
+        let newPlayers = state.players;
+        if (playerId === state.imposterId && state.players[playerId]?.data?.hintWord) {
+            newPlayers = {
+                ...state.players,
+                [playerId]: {
+                    ...state.players[playerId],
+                    data: { ...state.players[playerId].data, hintWord: undefined }
+                }
+            };
+        }
+
+        // Advance turn
+        const nextIndex = (currentIndex + 1) % 3;
+        const nextTurn = turnNumber + 1;
+        const nextPlayerId = playerOrder[nextIndex];
+
+        // After 9 turns, go to voting
+        if (nextTurn > 9) {
+            return {
+                ...state,
+                players: newPlayers,
+                imposterHints: newHints,
+                imposterTurnNumber: nextTurn,
+                imposterCurrentPlayerIndex: nextIndex,
+                turnPlayerId: null,
+                imposterPhase: 'voting',
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'info',
+                    content: `All hints submitted! Time to vote for the imposter...`,
+                    timestamp: Date.now()
+                }]
+            };
+        }
+
+        return {
+            ...state,
+            players: newPlayers,
+            imposterHints: newHints,
+            imposterTurnNumber: nextTurn,
+            imposterCurrentPlayerIndex: nextIndex,
+            turnPlayerId: nextPlayerId,
+            history: [...state.history, {
+                playerId,
+                action: 'info',
+                content: `${state.players[playerId]?.name} submitted their hint`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // IRL Mode: End turn (player spoke their hint aloud)
+    if (type === 'END_IMPOSTER_TURN') {
+        if (state.gameType !== 'imposter') return state;
+        if (state.imposterMode !== 'irl') throw new Error('Not in IRL Mode');
+        if (state.imposterPhase !== 'playing') throw new Error('Not in playing phase');
+        if (state.turnPlayerId !== playerId) throw new Error('Not your turn');
+
+        const turnNumber = state.imposterTurnNumber || 1;
+        const playerOrder = state.imposterPlayerOrder || [];
+        const currentIndex = state.imposterCurrentPlayerIndex || 0;
+
+        // Clear imposter's hint word after their first turn
+        let newPlayers = state.players;
+        if (playerId === state.imposterId && state.players[playerId]?.data?.hintWord) {
+            newPlayers = {
+                ...state.players,
+                [playerId]: {
+                    ...state.players[playerId],
+                    data: { ...state.players[playerId].data, hintWord: undefined }
+                }
+            };
+        }
+
+        // Advance turn
+        const nextIndex = (currentIndex + 1) % 3;
+        const nextTurn = turnNumber + 1;
+        const nextPlayerId = playerOrder[nextIndex];
+
+        // After 9 turns, go to voting
+        if (nextTurn > 9) {
+            return {
+                ...state,
+                players: newPlayers,
+                imposterTurnNumber: nextTurn,
+                imposterCurrentPlayerIndex: nextIndex,
+                turnPlayerId: null,
+                imposterPhase: 'voting',
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'info',
+                    content: `All turns completed! Time to vote for the imposter...`,
+                    timestamp: Date.now()
+                }]
+            };
+        }
+
+        return {
+            ...state,
+            players: newPlayers,
+            imposterTurnNumber: nextTurn,
+            imposterCurrentPlayerIndex: nextIndex,
+            turnPlayerId: nextPlayerId,
+            history: [...state.history, {
+                playerId,
+                action: 'info',
+                content: `${state.players[playerId]?.name} ended their turn`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // Submit vote for who the imposter is
+    if (type === 'SUBMIT_IMPOSTER_VOTE') {
+        if (state.gameType !== 'imposter') return state;
+        if (state.imposterPhase !== 'voting') throw new Error('Not in voting phase');
+
+        const votedForId = payload?.votedForId || payload;
+        if (!votedForId) throw new Error('Must specify who to vote for');
+        if (votedForId === playerId) throw new Error('Cannot vote for yourself');
+        if (!state.imposterPlayerOrder?.includes(votedForId)) throw new Error('Invalid vote target');
+
+        // Check if already voted
+        const existingVotes = state.imposterVotes || [];
+        if (existingVotes.find(v => v.voterId === playerId)) {
+            throw new Error('Already voted');
+        }
+
+        const newVotes = [...existingVotes, { voterId: playerId, votedForId }];
+
+        // If all 3 have voted, resolve
+        if (newVotes.length >= 3) {
+            // Count votes
+            const voteCounts: Record<string, number> = {};
+            newVotes.forEach(v => {
+                voteCounts[v.votedForId] = (voteCounts[v.votedForId] || 0) + 1;
+            });
+
+            // Find who got most votes
+            const maxVotes = Math.max(...Object.values(voteCounts));
+            const playersWithMaxVotes = Object.keys(voteCounts).filter(id => voteCounts[id] === maxVotes);
+
+            const imposterId = state.imposterId || '';
+            const imposterEliminated = playersWithMaxVotes.length === 1 &&
+                playersWithMaxVotes[0] === imposterId &&
+                maxVotes >= 2;
+
+            // Calculate scores
+            const newScores = { ...(state.imposterScores || {}) };
+            const playerOrder = state.imposterPlayerOrder || [];
+
+            // +1 for each correct vote
+            newVotes.forEach(v => {
+                if (v.votedForId === imposterId) {
+                    newScores[v.voterId] = (newScores[v.voterId] || 0) + 1;
+                }
+            });
+
+            if (imposterEliminated) {
+                // Non-imposters win: +2 bonus each
+                playerOrder.forEach(pid => {
+                    if (pid !== imposterId) {
+                        newScores[pid] = (newScores[pid] || 0) + 2;
+                    }
+                });
+            } else {
+                // Imposter wins: +3 points
+                newScores[imposterId] = (newScores[imposterId] || 0) + 3;
+            }
+
+            const imposterName = state.players[imposterId]?.name || 'Unknown';
+            const winMessage = imposterEliminated
+                ? `The imposter (${imposterName}) was caught! Non-imposters win!`
+                : `The imposter (${imposterName}) escaped detection! Imposter wins!`;
+
+            return {
+                ...state,
+                imposterVotes: newVotes,
+                imposterScores: newScores,
+                imposterPhase: 'results',
+                matchStatus: 'finished',
+                winnerId: imposterEliminated ? null : imposterId, // For display purposes
+                history: [...state.history, {
+                    playerId: 'system',
+                    action: 'WIN',
+                    content: winMessage,
+                    timestamp: Date.now()
+                }]
+            };
+        }
+
+        return {
+            ...state,
+            imposterVotes: newVotes,
+            history: [...state.history, {
+                playerId: 'system',
+                action: 'info',
+                content: `${state.players[playerId]?.name} has voted`,
+                timestamp: Date.now()
+            }]
+        };
+    }
+
+    // Play again with same players
+    if (type === 'IMPOSTER_NEXT_ROUND') {
+        if (state.gameType !== 'imposter') return state;
+        if (state.imposterPhase !== 'results') return state;
+
+        const playerOrder = state.imposterPlayerOrder || [];
+        if (playerOrder.length !== 3) throw new Error('Need 3 players to play again');
+
+        // Re-queue all players and start fresh match
+        const newState: GameState = {
+            ...state,
+            queue: [...playerOrder],
+            matchStatus: 'lobby'
+        };
+
+        return startImposterMatch(newState);
     }
 
     return state;

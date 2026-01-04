@@ -57,17 +57,41 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
             game.matchStatus === 'finished' ||
             isSpectator;
 
+        // For Imposter: Sanitize player data
+        // - Each player should only see their own secretWord/hintWord
+        // - Imposter should NEVER see the secret word
+        let sanitizedData = p.data;
+        if (game.gameType === 'imposter' && p.data) {
+            if (pid === playerId) {
+                // Player sees their own data
+                sanitizedData = p.data;
+            } else {
+                // Hide other players' secrets
+                sanitizedData = {
+                    isImposter: undefined, // Hide whether others are imposter
+                    secretWord: undefined,
+                    hintWord: undefined
+                };
+            }
+        }
+
         acc[pid] = {
             ...p,
             characterId: shouldReveal ? p.characterId : '???',
+            data: sanitizedData
         };
         return acc;
     }, {} as typeof game.players);
 
+    // For Imposter: Hide the imposter identity until results phase
     const sanitizedGame = {
         ...game,
         players: sanitizedPlayers,
-        serverTime: Date.now()
+        serverTime: Date.now(),
+        // Hide imposter identity from all players until results
+        imposterId: game.gameType === 'imposter' && game.imposterPhase !== 'results' ? undefined : game.imposterId,
+        // NEVER expose the secret word in the game state to the client - it's only in player.data for non-imposters
+        imposterSecretWord: undefined
     };
 
     return NextResponse.json(sanitizedGame);

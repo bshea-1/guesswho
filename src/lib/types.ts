@@ -14,7 +14,7 @@ export type Player = {
 };
 
 
-export type GameType = 'guess-who' | 'word-bomb' | 'connect-4' | 'cah' | 'dots-and-boxes';
+export type GameType = 'guess-who' | 'word-bomb' | 'connect-4' | 'cah' | 'dots-and-boxes' | 'imposter';
 
 export type GameStatus = 'lobby' | 'selecting' | 'playing' | 'finished';
 
@@ -31,6 +31,18 @@ export type Turn = {
     action: 'ask' | 'guess' | 'answer' | 'join' | 'WIN' | 'GAME_OVER' | 'info';
     content: string; // The question or the guess
     timestamp: number;
+};
+
+// Imposter-specific types
+export type ImposterHint = {
+    playerId: string;
+    hint: string;
+    turnNumber: number;
+};
+
+export type ImposterVote = {
+    voterId: string;
+    votedForId: string;
 };
 
 export type GameState = {
@@ -59,6 +71,21 @@ export type GameState = {
     // Dots and Boxes Specific State
     dabLines?: string[]; // Array of line IDs e.g. "v-0-0" (vertical, row, col) or "h-0-0" (horizontal)
     dabBoxes?: Record<string, string>; // Map of "r-c" box coords to owner player ID
+
+    // Imposter Specific State
+    imposterMode?: 'text' | 'irl'; // Sub-mode: text hints or IRL speaking
+    imposterSecretWord?: string; // The secret word (NOT sent to imposter client)
+    imposterHintWord?: string; // Hint word for imposter (first turn only)
+    imposterId?: string; // Player ID of the imposter
+    imposterTurnNumber?: number; // Current turn number (1-9)
+    imposterCurrentPlayerIndex?: number; // Index in player order (0-2)
+    imposterPlayerOrder?: string[]; // Fixed turn order for the round
+    imposterHints?: ImposterHint[]; // Timeline of hints (Text Mode)
+    imposterVotes?: ImposterVote[]; // Votes cast during voting phase
+    imposterPhase?: 'reveal' | 'playing' | 'voting' | 'results'; // Current game phase
+    imposterScores?: Record<string, number>; // Persistent scores across rounds
+    imposterUsedPairs?: number[]; // Indices of used word pairs to avoid repeats
+    imposterReadyPlayers?: string[]; // Players who have acknowledged role reveal
 
     bannedIds: string[]; // IDs of banned players (cached by name hash for persistence)
     chat: ChatMessage[];
