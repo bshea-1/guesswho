@@ -259,16 +259,12 @@ function startImposterMatch(state: GameState): GameState {
         throw new Error('Imposter requires at least 3 players');
     }
 
-    // Shuffle player order for true randomization (Fisher-Yates)
+    // Keep original queue order for turn order
     const playerIds = [...state.queue];
-    for (let i = playerIds.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [playerIds[i], playerIds[j]] = [playerIds[j], playerIds[i]];
-    }
 
     const resetPlayers = { ...state.players };
 
-    // Pick random imposter from shuffled list
+    // Pick random imposter (only this is randomized, not turn order)
     const imposterIndex = Math.floor(Math.random() * playerIds.length);
     const imposterId = playerIds[imposterIndex];
 
