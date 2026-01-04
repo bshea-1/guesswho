@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/lib/store';
 import { getPusherClient } from '@/lib/pusher';
 import { GameState, Player } from '@/lib/types';
-import { Loader2, Menu, Check } from 'lucide-react';
+import { Loader2, Menu, Check, Crown, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Shared Components
 import GameSidebar from '@/components/shared/GameSidebar';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import GuessWhoGame from '@/components/games/GuessWhoGame';
 import Connect4Game from '@/components/games/Connect4Game';
 import WordBombGame from '@/components/games/WordBombGame';
@@ -25,6 +26,15 @@ export default function GameClient({ roomId }: { roomId: string }) {
     const [chatInput, setChatInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [typingText, setTypingText] = useState('');
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [confirmation, setConfirmation] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        isDanger: false,
+        confirmText: 'Confirm'
+    });
 
     const copyRoomCode = () => {
         navigator.clipboard.writeText(roomId);
@@ -197,7 +207,21 @@ export default function GameClient({ roomId }: { roomId: string }) {
     const hasUnread = false; // TODO: Implement read receipts or count
 
     const sidebarProps = {
-        game, playerId, roomId, copied, chatInput, setChatInput, sendAction, copyRoomCode, handleLeaveParty, iamHost, iamActive, activePlayers, spectators
+        game,
+        playerId,
+        roomId,
+        copied,
+        chatInput,
+        setChatInput,
+        sendAction,
+        copyRoomCode,
+        handleLeaveParty,
+        iamHost,
+        iamActive,
+        activePlayers,
+        spectators,
+        onShowTransfer: () => setShowTransferModal(true),
+        onShowConfirmation: (config: any) => setConfirmation({ ...config, isOpen: true })
     };
 
     return (
@@ -423,6 +447,83 @@ export default function GameClient({ roomId }: { roomId: string }) {
                     <div className="flex-1 flex items-center justify-center text-red-500">Unknown Game Type</div>
                 )}
             </div>
+
+            {/* Global Overlays */}
+            <AnimatePresence>
+                {/* Transfer Host Overlay - Spans Entire Panel */}
+                {showTransferModal && (
+                    <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 py-20 animate-in fade-in duration-200">
+                        <div className="bg-slate-900 border border-yellow-500/30 p-6 rounded-2xl max-w-lg w-full shadow-2xl flex flex-col max-h-[80vh]">
+                            <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                                <h3 className="font-bold text-2xl text-yellow-400 flex items-center gap-2">
+                                    <Crown size={28} /> Select New Host
+                                </h3>
+                                <button
+                                    onClick={() => setShowTransferModal(false)}
+                                    className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <p className="text-slate-400 text-sm mb-6">
+                                Choose a player to transfer host privileges to. Once transferred, you will no longer have host controls.
+                            </p>
+
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                                {Object.values(game.players).filter(p => p.id !== playerId).length === 0 ? (
+                                    <p className="text-center text-slate-500 italic py-10">No other players available.</p>
+                                ) : (
+                                    Object.values(game.players)
+                                        .filter(p => p.id !== playerId)
+                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                        .map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setConfirmation({
+                                                        isOpen: true,
+                                                        title: 'Transfer Host',
+                                                        message: `Make ${p.name} the new host?`,
+                                                        confirmText: 'Promote',
+                                                        isDanger: false,
+                                                        onConfirm: async () => {
+                                                            await sendAction('TRANSFER_HOST', { targetId: p.id });
+                                                            setShowTransferModal(false);
+                                                        }
+                                                    });
+                                                }}
+                                                className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-white/5 transition group"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-lg font-bold text-slate-300 group-hover:bg-yellow-500/20 group-hover:text-yellow-500 transition">
+                                                        {p.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span className="font-bold text-lg text-slate-200 group-hover:text-white transition">{p.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-yellow-500 opacity-0 group-hover:opacity-100 transition">
+                                                    <span className="text-xs font-bold uppercase tracking-widest">Promote</span>
+                                                    <Crown size={16} />
+                                                </div>
+                                            </button>
+                                        ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Global Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmation.isOpen}
+                onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmation.onConfirm}
+                title={confirmation.title}
+                message={confirmation.message}
+                confirmText={confirmation.confirmText}
+                isDanger={confirmation.isDanger}
+            />
         </div>
     );
 }

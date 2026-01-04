@@ -8,7 +8,6 @@ import ConfirmationModal from './ConfirmationModal';
 // Extracted Sidebar Content Component
 export default function GameSidebar({
     game,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     playerId,
     roomId,
     copied,
@@ -21,7 +20,9 @@ export default function GameSidebar({
     iamActive,
     activePlayers,
     spectators,
-    onClose
+    onClose,
+    onShowTransfer,
+    onShowConfirmation
 }: {
     game: GameState;
     playerId: string | null;
@@ -38,17 +39,16 @@ export default function GameSidebar({
     activePlayers: Player[];
     spectators: Player[];
     onClose?: () => void;
+    onShowTransfer: () => void;
+    onShowConfirmation: (config: {
+        title: string;
+        message: string;
+        confirmText?: string;
+        isDanger?: boolean;
+        onConfirm: () => void;
+    }) => void;
 }) {
     const [activeTab, setActiveTab] = useState<'participants' | 'queue'>('participants');
-    const [showTransferModal, setShowTransferModal] = useState(false);
-    const [confirmation, setConfirmation] = useState({
-        isOpen: false,
-        title: '',
-        message: '',
-        onConfirm: () => { },
-        isDanger: false,
-        confirmText: 'Confirm'
-    });
     const { setGame } = useGameStore();
 
     const [pendingMessages, setPendingMessages] = useState<any[]>([]);
@@ -103,7 +103,7 @@ export default function GameSidebar({
                         {iamHost && (
                             <>
                                 <button
-                                    onClick={() => setShowTransferModal(true)}
+                                    onClick={onShowTransfer}
                                     className="p-2 text-yellow-400 hover:text-yellow-300 rounded-lg hover:bg-yellow-900/30 transition"
                                     title="Transfer Host"
                                 >
@@ -111,8 +111,7 @@ export default function GameSidebar({
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setConfirmation({
-                                            isOpen: true,
+                                        onShowConfirmation({
                                             title: 'End Party?',
                                             message: 'Are you sure you want to end this party? Everyone will be disconnected.',
                                             confirmText: 'End Party',
@@ -142,53 +141,6 @@ export default function GameSidebar({
                     </div>
                 </div>
 
-                {/* Transfer Host Modal */}
-                {showTransferModal && (
-                    <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col p-4 animate-in fade-in duration-200">
-                        <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-4">
-                            <h3 className="font-bold text-lg text-yellow-400 flex items-center gap-2">
-                                <Crown size={20} /> Select New Host
-                            </h3>
-                            <button
-                                onClick={() => setShowTransferModal(false)}
-                                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto space-y-2">
-                            {Object.values(game.players).filter(p => p.id !== playerId).length === 0 ? (
-                                <p className="text-center text-slate-500 italic mt-10">No other players available.</p>
-                            ) : (
-                                Object.values(game.players)
-                                    .filter(p => p.id !== playerId)
-                                    .sort((a, b) => a.name.localeCompare(b.name))
-                                    .map(p => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => {
-                                                setConfirmation({
-                                                    isOpen: true,
-                                                    title: 'Transfer Host',
-                                                    message: `Make ${p.name} the new host?`,
-                                                    confirmText: 'Promote',
-                                                    isDanger: false,
-                                                    onConfirm: async () => {
-                                                        await sendAction('TRANSFER_HOST', { targetId: p.id });
-                                                        setShowTransferModal(false);
-                                                    }
-                                                });
-                                            }}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/5 transition group"
-                                        >
-                                            <span className="font-bold text-slate-200 group-hover:text-white">{p.name}</span>
-                                            <span className="text-xs text-slate-500 group-hover:text-yellow-500 uppercase font-bold tracking-wider">Promote</span>
-                                        </button>
-                                    ))
-                            )}
-                        </div>
-                    </div>
-                )}
 
                 {/* Info Bar */}
                 <div className="flex items-center justify-between text-sm bg-slate-900/50 p-2 rounded-lg border border-white/5 mb-4">
@@ -246,8 +198,7 @@ export default function GameSidebar({
                                                 {iamHost && p.id !== playerId && (
                                                     <button
                                                         onClick={() => {
-                                                            setConfirmation({
-                                                                isOpen: true,
+                                                            onShowConfirmation({
                                                                 title: 'Kick Player?',
                                                                 message: `Kick ${p.name}? This will end the current match if they are playing.`,
                                                                 confirmText: 'Kick',
@@ -294,8 +245,7 @@ export default function GameSidebar({
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        setConfirmation({
-                                                            isOpen: true,
+                                                        onShowConfirmation({
                                                             title: 'Ban Player?',
                                                             message: `Ban ${p.name} from this room? They will not be able to rejoin.`,
                                                             confirmText: 'Ban',
@@ -424,16 +374,6 @@ export default function GameSidebar({
                     />
                 </form>
             </div>
-            {/* Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={confirmation.isOpen}
-                onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
-                onConfirm={confirmation.onConfirm}
-                title={confirmation.title}
-                message={confirmation.message}
-                confirmText={confirmation.confirmText}
-                isDanger={confirmation.isDanger}
-            />
         </div>
     );
 }
