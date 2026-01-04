@@ -491,22 +491,6 @@ export default function HomeClient() {
                                     </button>
 
                                     <button
-                                        disabled
-                                        className="flex items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700 transition group text-left opacity-60 cursor-not-allowed"
-                                    >
-                                        <div className="p-3 bg-orange-500/20 rounded-lg text-orange-400">
-                                            <Dices size={24} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-bold text-white">Word Bomb</div>
-                                            <div className="text-sm text-slate-400">Fast-paced word game</div>
-                                        </div>
-                                        <div className="text-xs font-bold text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">
-                                            Coming Soon
-                                        </div>
-                                    </button>
-
-                                    <button
                                         onClick={() => handleGameSelect('connect-4')}
                                         className="flex items-center gap-4 bg-slate-800 hover:bg-red-900/40 p-4 rounded-xl border border-slate-700 hover:border-red-500 transition group text-left"
                                     >
@@ -556,7 +540,7 @@ export default function HomeClient() {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="font-bold text-white">Imposter</div>
-                                                <div className="text-sm text-slate-400">Social deduction (3+ Players)</div>
+                                                <div className="text-sm text-slate-400">Social deduction</div>
                                             </div>
                                         </button>
 
