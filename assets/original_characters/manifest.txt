@@ -1,0 +1,27 @@
+Friend Cards (24 PNGs)
+Each card resolution: 237x306 px
+
+1-1: Amy.png
+1-2: David.png
+1-3: Leo.png
+1-4: Gabe.png
+1-5: Katie.png
+1-6: Olivia.png
+1-7: Jordan.png
+1-8: Carmen.png
+2-1: Laura.png
+2-2: Joe.png
+2-3: Mike.png
+2-4: Al.png
+2-5: Daniel.png
+2-6: Sophia.png
+2-7: Nick.png
+2-8: Lily.png
+3-1: Liz.png
+3-2: Mia.png
+3-3: Emma.png
+3-4: Rachel.png
+3-5: Ben.png
+3-6: Eric.png
+3-7: Farah.png
+3-8: Sam.png
